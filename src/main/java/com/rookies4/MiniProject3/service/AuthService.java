@@ -1,59 +1,85 @@
+// src/main/java/com/rookies4/MiniProject2/service/AuthService.java
 package com.rookies4.MiniProject3.service;
 
-
 import com.rookies4.MiniProject3.domain.entity.User;
+import com.rookies4.MiniProject3.dto.AuthDto;
+import com.rookies4.MiniProject3.exception.CustomException;
+import com.rookies4.MiniProject3.exception.ErrorCode;
+import com.rookies4.MiniProject3.exception.BusinessLogicException;
 import com.rookies4.MiniProject3.jwt.JwtTokenProvider;
 import com.rookies4.MiniProject3.repository.UserRepository;
-import com.rookies4.MiniProject3.jwt.JwtTokenProvider;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.config.annotation.authentication.builders.AuthenticationManagerBuilder;
+import org.springframework.security.core.Authentication;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
-import java.util.Optional;
-import java.util.HashMap;
-import java.util.Map;
+import org.springframework.transaction.annotation.Transactional;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class AuthService {
-
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
+    private final AuthenticationManagerBuilder authenticationManagerBuilder;
     private final JwtTokenProvider jwtTokenProvider;
 
-    // 회원가입
-    public User register(String email, String password, String username) {
-        if (userRepository.existsByEmail(email)) {
-            throw new IllegalArgumentException("[ERROR] 이미 가입된 이메일입니다.");
+    @Value("${file.upload-dir}")
+    private String uploadDir;
+
+    @Transactional
+    public AuthDto.SignUpResponse signup(AuthDto.SignUpRequest request) {
+        if (userRepository.existsByEmail(request.getEmail())) {
+            throw new BusinessLogicException(ErrorCode.USERNAME_DUPLICATION);
         }
 
-        User user = User.builder()
-                .email(email)
-                .password(passwordEncoder.encode(password))
-                .username(username)
+        User userToSave = User.builder()
+                .email(request.getEmail())
+                .password(passwordEncoder.encode(request.getPassword()))
+                .username(request.getUsername())
                 .build();
 
-        return userRepository.save(user);
+        User savedUser = userRepository.save(userToSave);
+
+        return AuthDto.SignUpResponse.builder()
+                .userId(savedUser.getId())
+                .username(savedUser.getUsername())
+                .email(savedUser.getEmail())
+                .build();
     }
 
-    // 로그인 처리
-    public Map<String, Object> login(String email, String password) {
-        User user = userRepository.findByEmail(email)
-                .orElseThrow(() -> new IllegalArgumentException("[ERROR] 이메일 또는 비밀번호가 일치하지 않습니다."));
+    @Transactional
+    public AuthDto.TokenResponse login(AuthDto.LoginRequest request) {
+        // 1. Login ID/PW 를 기반으로 Authentication 객체 생성
+        UsernamePasswordAuthenticationToken authenticationToken = new UsernamePasswordAuthenticationToken(request.getEmail(), request.getPassword());
 
-        if (!passwordEncoder.matches(password, user.getPassword())) {
-            throw new IllegalArgumentException("[ERROR] 이메일 또는 비밀번호가 일치하지 않습니다.");
+        // 2. 실제로 검증 (사용자 비밀번호 체크) 이 이루어지는 부분
+        Authentication authentication = authenticationManagerBuilder.getObject().authenticate(authenticationToken);
+
+        // 3. 인증 정보를 기반으로 JWT 토큰 생성
+        AuthDto.TokenResponse tokenResponse = jwtTokenProvider.generateTokens(authentication);
+
+
+        return tokenResponse;
+    }
+
+    @Transactional
+    public AuthDto.TokenResponse reissue(AuthDto.ReissueRequest request) {
+        // Refresh Token 유효성 검증
+        if (!jwtTokenProvider.validateToken(request.getRefreshToken())) {
+            throw new CustomException(ErrorCode.INVALID_TOKEN);
         }
 
-        // JWT 토큰 발급
-        String accessToken = jwtTokenProvider.generateAccessToken(user);
-        String refreshToken = jwtTokenProvider.generateRefreshToken(user);
+        // Access Token 에서 사용자 정보 (username) 가져오기 (만료된 토큰이어도 가능)
+        Authentication authentication = jwtTokenProvider.getAuthentication(request.getAccessToken());
 
-        Map<String, Object> result = new HashMap<>();
-        result.put("grantType", "Bearer");
-        result.put("accessToken", accessToken);
-        result.put("refreshToken", refreshToken);
-        result.put("expiresIn", jwtTokenProvider.getExpiration(accessToken));
+        // 새로운 토큰 생성
+        AuthDto.TokenResponse newTokenResponse = jwtTokenProvider.generateTokens(authentication);
 
-        return result;
+        // 토큰 발급
+        return newTokenResponse;
     }
 }

@@ -8,5 +8,5 @@ import java.util.List;
 
 public interface QuizRepository extends JpaRepository<Quiz, Long> {
     // 특정 업로드 문서의 퀴즈 조회
-    List<Quiz> findByUpload(Content content);
+    List<Quiz> findByContent(Content content);
 }

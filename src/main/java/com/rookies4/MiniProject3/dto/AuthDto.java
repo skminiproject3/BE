@@ -11,58 +11,55 @@ import java.time.LocalDate;
 
 
 public class AuthDto {
-
     @Getter
     @Builder
     @NoArgsConstructor(access = AccessLevel.PROTECTED)
     @AllArgsConstructor
     public static class SignUpRequest {
-        @Email(message = "이메일 형식이 올바르지 않습니다.")
         @NotBlank(message = "이메일은 필수 입력 항목입니다.")
         private String email;
-
         @NotBlank(message = "비밀번호는 필수 입력 항목입니다.")
         private String password;
-
-        @NotBlank(message = "사용자 이름은 필수 입력 항목입니다.")
+        @NotBlank(message = "닉네임은 필수 입력 항목입니다.")
         private String username;
     }
 
     @Getter
     public static class LoginRequest {
-        @Email(message = "이메일 형식이 올바르지 않습니다.")
-        @NotBlank(message = "이메일은 필수 입력 항목입니다.")
-        private String email;
-
-        @NotBlank(message = "비밀번호는 필수 입력 항목입니다.")
-        private String password;
+        @NotBlank private String email;
+        @NotBlank private String password;
     }
 
     @Getter
-    @Builder
     public static class SignUpResponse {
         private Long userId;
         private String email;
         private String username;
 
-        public static SignUpResponse fromEntity(User user) {
-            return SignUpResponse.builder()
-                    .userId(user.getId())
-                    .email(user.getEmail())
-                    .username(user.getUsername())
-                    .build();
+        @Builder
+        public SignUpResponse(Long userId, String email, String username) {
+            this.userId = userId;
+            this.username = username;
+            this.email = email;
         }
     }
 
     @Getter
-    @Builder
     public static class TokenResponse {
         private String grantType = "Bearer";
         private String accessToken;
         private String refreshToken;
         private long expiresIn;
+
+        @Builder
+        public TokenResponse(String accessToken, String refreshToken, long expiresIn) {
+            this.accessToken = accessToken;
+            this.refreshToken = refreshToken;
+            this.expiresIn = expiresIn;
+        }
     }
 
+    // Token 재발급 요청을 위한 DTO
     @Getter
     @NoArgsConstructor
     public static class ReissueRequest {
