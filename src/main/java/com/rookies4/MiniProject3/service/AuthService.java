@@ -27,9 +27,6 @@ public class AuthService {
     private final AuthenticationManagerBuilder authenticationManagerBuilder;
     private final JwtTokenProvider jwtTokenProvider;
 
-    @Value("${file.upload-dir}")
-    private String uploadDir;
-
     @Transactional
     public AuthDto.SignUpResponse signup(AuthDto.SignUpRequest request) {
         if (userRepository.existsByEmail(request.getEmail())) {
@@ -53,13 +50,13 @@ public class AuthService {
 
     @Transactional
     public AuthDto.TokenResponse login(AuthDto.LoginRequest request) {
-        // 1. Login ID/PW 를 기반으로 Authentication 객체 생성
+        // Login ID/PW 를 기반으로 Authentication 객체 생성
         UsernamePasswordAuthenticationToken authenticationToken = new UsernamePasswordAuthenticationToken(request.getEmail(), request.getPassword());
 
-        // 2. 실제로 검증 (사용자 비밀번호 체크) 이 이루어지는 부분
+        // 실제로 검증 (사용자 비밀번호 체크) 이 이루어지는 부분
         Authentication authentication = authenticationManagerBuilder.getObject().authenticate(authenticationToken);
 
-        // 3. 인증 정보를 기반으로 JWT 토큰 생성
+        // 인증 정보를 기반으로 JWT 토큰 생성
         AuthDto.TokenResponse tokenResponse = jwtTokenProvider.generateTokens(authentication);
 
 
