@@ -1,7 +1,7 @@
 package com.rookies4.MiniProject3.service;
 
 import com.rookies4.MiniProject3.domain.entity.ChatLog;
-import com.rookies4.MiniProject3.domain.entity.Upload;
+import com.rookies4.MiniProject3.domain.entity.Content;
 import com.rookies4.MiniProject3.domain.entity.User;
 import com.rookies4.MiniProject3.domain.enums.Role;
 import com.rookies4.MiniProject3.repository.ChatLogRepository;
@@ -16,10 +16,10 @@ public class ChatLogService {
 
     private final ChatLogRepository chatLogRepository;
 
-    public ChatLog saveChat(User user, Upload upload, Role role, String message, Float responseTime, Integer tokenUsage) {
+    public ChatLog saveChat(User user, Content content, Role role, String message, Float responseTime, Integer tokenUsage) {
         ChatLog chatLog = ChatLog.builder()
                 .user(user)
-                .upload(upload)
+                .content(content)
                 .role(role)
                 .message(message)
                 .responseTime(responseTime)
@@ -32,7 +32,7 @@ public class ChatLogService {
         return chatLogRepository.findByUser(user);
     }
 
-    public List<ChatLog> getUploadChats(Upload upload) {
-        return chatLogRepository.findByUpload(upload);
+    public List<ChatLog> getUploadChats(Content content) {
+        return chatLogRepository.findByUpload(content);
     }
 }

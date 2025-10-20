@@ -23,7 +23,7 @@ public class Quiz {
 
     @ManyToOne
     @JoinColumn(name = "upload_id")
-    private Upload upload;
+    private Content content;
 
     @Column(nullable = false, columnDefinition = "TEXT")
     private String question;

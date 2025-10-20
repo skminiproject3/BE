@@ -37,4 +37,4 @@ build/
 /logs/spring.log
 
 ### 업로드 불필요한 파일 ###
-/uploads
+/Contents

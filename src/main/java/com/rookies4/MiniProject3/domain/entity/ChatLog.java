@@ -25,7 +25,7 @@ public class ChatLog {
 
     @ManyToOne
     @JoinColumn(name = "upload_id")
-    private Upload upload;
+    private Content content;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)

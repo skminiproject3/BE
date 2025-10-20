@@ -27,7 +27,7 @@ public class User {
     private String password;
 
     @Column(nullable = false, length = 50)
-    private String name;
+    private String username;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 10)
@@ -37,7 +37,7 @@ public class User {
 
     // 관계
     @OneToMany(mappedBy = "user")
-    private List<Upload> uploads;
+    private List<Content> Contents;
 
     @OneToMany(mappedBy = "user")
     private List<Progress> progresses;

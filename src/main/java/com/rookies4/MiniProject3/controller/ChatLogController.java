@@ -2,7 +2,7 @@ package com.rookies4.MiniProject3.controller;
 
 
 import com.rookies4.MiniProject3.domain.entity.ChatLog;
-import com.rookies4.MiniProject3.domain.entity.Upload;
+import com.rookies4.MiniProject3.domain.entity.Content;
 import com.rookies4.MiniProject3.domain.enums.Role;
 import com.rookies4.MiniProject3.domain.entity.User;
 import com.rookies4.MiniProject3.service.ChatLogService;
@@ -21,12 +21,12 @@ public class ChatLogController {
 
     @PostMapping("/send")
     public ResponseEntity<ChatLog> sendChat(@RequestParam User user,
-                                            @RequestParam Upload upload,
+                                            @RequestParam Content content,
                                             @RequestParam Role role,
                                             @RequestParam String message,
                                             @RequestParam(required = false) Float responseTime,
                                             @RequestParam(required = false) Integer tokenUsage) {
-        ChatLog chat = chatLogService.saveChat(user, upload, role, message, responseTime, tokenUsage);
+        ChatLog chat = chatLogService.saveChat(user, content, role, message, responseTime, tokenUsage);
         return ResponseEntity.ok(chat);
     }
 
@@ -36,7 +36,7 @@ public class ChatLogController {
     }
 
     @GetMapping("/upload/{uploadId}")
-    public ResponseEntity<List<ChatLog>> getUploadChats(@PathVariable Upload upload) {
-        return ResponseEntity.ok(chatLogService.getUploadChats(upload));
+    public ResponseEntity<List<ChatLog>> getUploadChats(@PathVariable Content content) {
+        return ResponseEntity.ok(chatLogService.getUploadChats(content));
     }
 }

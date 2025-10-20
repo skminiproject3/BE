@@ -20,7 +20,7 @@ public class Summary {
 
     @ManyToOne
     @JoinColumn(name = "upload_id")
-    private Upload upload;
+    private Content content;
 
     private String chapterTitle;
 

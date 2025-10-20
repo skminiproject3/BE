@@ -1,7 +1,7 @@
 package com.rookies4.MiniProject3.service;
 
 import com.rookies4.MiniProject3.domain.entity.Progress;
-import com.rookies4.MiniProject3.domain.entity.Upload;
+import com.rookies4.MiniProject3.domain.entity.Content;
 import com.rookies4.MiniProject3.domain.entity.User;
 import com.rookies4.MiniProject3.repository.ProgressRepository;
 import lombok.RequiredArgsConstructor;
@@ -16,9 +16,9 @@ public class ProgressService {
 
     private final ProgressRepository progressRepository;
 
-    public Progress saveOrUpdateProgress(User user, Upload upload, int chapterCompleted, int totalChapters, float quizScore) {
-        Optional<Progress> existing = progressRepository.findByUserAndUpload(user, upload);
-        Progress progress = existing.orElseGet(() -> Progress.builder().user(user).upload(upload).build());
+    public Progress saveOrUpdateProgress(User user, Content content, int chapterCompleted, int totalChapters, float quizScore) {
+        Optional<Progress> existing = progressRepository.findByUserAndUpload(user, content);
+        Progress progress = existing.orElseGet(() -> Progress.builder().user(user).content(content).build());
 
         progress.setChapterCompleted(chapterCompleted);
         progress.setTotalChapters(totalChapters);

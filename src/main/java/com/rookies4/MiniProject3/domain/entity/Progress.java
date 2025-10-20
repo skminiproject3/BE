@@ -24,7 +24,7 @@ public class Progress {
 
     @ManyToOne
     @JoinColumn(name = "upload_id")
-    private Upload upload;
+    private Content content;
 
     private Integer chapterCompleted = 0;
     private Integer totalChapters = 0;

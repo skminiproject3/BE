@@ -1,7 +1,7 @@
 package com.rookies4.MiniProject3.controller;
 
 import com.rookies4.MiniProject3.domain.entity.Progress;
-import com.rookies4.MiniProject3.domain.entity.Upload;
+import com.rookies4.MiniProject3.domain.entity.Content;
 import com.rookies4.MiniProject3.domain.entity.User;
 import com.rookies4.MiniProject3.service.ProgressService;
 import lombok.RequiredArgsConstructor;
@@ -19,11 +19,11 @@ public class ProgressController {
 
     @PostMapping("/update")
     public ResponseEntity<Progress> updateProgress(@RequestParam User user,
-                                                   @RequestParam Upload upload,
+                                                   @RequestParam Content content,
                                                    @RequestParam int chapterCompleted,
                                                    @RequestParam int totalChapters,
                                                    @RequestParam float quizScore) {
-        Progress progress = progressService.saveOrUpdateProgress(user, upload, chapterCompleted, totalChapters, quizScore);
+        Progress progress = progressService.saveOrUpdateProgress(user, content, chapterCompleted, totalChapters, quizScore);
         return ResponseEntity.ok(progress);
     }
 

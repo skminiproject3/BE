@@ -1,7 +1,7 @@
 package com.rookies4.MiniProject3.service;
 
+import com.rookies4.MiniProject3.domain.entity.Content;
 import com.rookies4.MiniProject3.domain.entity.Summary;
-import com.rookies4.MiniProject3.domain.entity.Upload;
 import com.rookies4.MiniProject3.repository.SummaryRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -14,9 +14,9 @@ public class SummaryService {
 
     private final SummaryRepository summaryRepository;
 
-    public Summary saveSummary(Upload upload, String chapterTitle, String summaryText, String keySentences) {
+    public Summary saveSummary(Content content, String chapterTitle, String summaryText, String keySentences) {
         Summary summary = Summary.builder()
-                .upload(upload)
+                .content(content)
                 .chapterTitle(chapterTitle)
                 .summaryText(summaryText)
                 .keySentences(keySentences)
@@ -24,7 +24,7 @@ public class SummaryService {
         return summaryRepository.save(summary);
     }
 
-    public List<Summary> getSummariesByUpload(Upload upload) {
-        return summaryRepository.findByUpload(upload);
+    public List<Summary> getSummariesByUpload(Content content) {
+        return summaryRepository.findByUpload(content);
     }
 }

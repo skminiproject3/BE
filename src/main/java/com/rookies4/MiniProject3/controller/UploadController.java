@@ -1,6 +1,6 @@
 package com.rookies4.MiniProject3.controller;
 
-import com.rookies4.MiniProject3.domain.entity.Upload;
+import com.rookies4.MiniProject3.domain.entity.Content;
 import com.rookies4.MiniProject3.domain.entity.User;
 import com.rookies4.MiniProject3.service.UploadService;
 import lombok.RequiredArgsConstructor;
@@ -19,19 +19,19 @@ public class UploadController {
 
     // 파일 업로드
     @PostMapping("/upload")
-    public ResponseEntity<Upload> uploadFile(@RequestParam User user,
-                                             @RequestParam MultipartFile file) {
+    public ResponseEntity<Content> uploadFile(@RequestParam User user,
+                                              @RequestParam MultipartFile file) {
         // 실제 저장 로직은 별도 서비스 또는 util에서 구현
         String filePath = "/upload/" + file.getOriginalFilename();
-        Upload upload = uploadService.saveUpload(user, file.getOriginalFilename(),
+        Content content = uploadService.saveUpload(user, file.getOriginalFilename(),
                 filePath, file.getSize(), file.getContentType());
-        return ResponseEntity.ok(upload);
+        return ResponseEntity.ok(content);
     }
 
     // 사용자 업로드 리스트 조회
     @GetMapping("/user/{userId}")
-    public ResponseEntity<List<Upload>> getUserUploads(@PathVariable User user) {
-        List<Upload> uploads = uploadService.getUserUploads(user);
-        return ResponseEntity.ok(uploads);
+    public ResponseEntity<List<Content>> getUserUploads(@PathVariable User user) {
+        List<Content> Contents = uploadService.getUserUploads(user);
+        return ResponseEntity.ok(Contents);
     }
 }

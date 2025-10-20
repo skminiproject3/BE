@@ -13,7 +13,7 @@ import java.util.List;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class Upload {
+public class Content {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)

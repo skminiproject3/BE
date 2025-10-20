@@ -1,14 +1,15 @@
 package com.rookies4.MiniProject3.controller;
 
 import com.rookies4.MiniProject3.domain.entity.User;
+import com.rookies4.MiniProject3.dto.LoginRequestDto;
+import com.rookies4.MiniProject3.dto.LoginResponseDto;
+import com.rookies4.MiniProject3.jwt.JwtTokenProvider;
 import com.rookies4.MiniProject3.service.UserService;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.crypto.password.PasswordEncoder;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/api/users")
@@ -16,30 +17,41 @@ import org.springframework.web.bind.annotation.RestController;
 public class UserController {
 
     private final UserService userService;
-    private final PasswordEncoder passwordEncoder;
+    private final JwtTokenProvider jwtTokenProvider;
 
-    // 회원가입
-    @PostMapping("/auth/register")
-    public ResponseEntity<User> register(@RequestParam String email,
-                                         @RequestParam String password,
-                                         @RequestParam String name) {
-        User user = userService.register(email, password, name);
-        return ResponseEntity.ok(user);
+    // 1️⃣ 로그인 (JWT 발급)
+    @PostMapping("/login")
+    public ResponseEntity<LoginResponseDto> login(@RequestBody @Valid LoginRequestDto loginDto) {
+
+        User user = userService.authenticate(loginDto.getEmail(), loginDto.getPassword());
+
+        // JWT 생성
+        String token = jwtTokenProvider.createToken(user.getId(), user.getRole().name());
+
+        LoginResponseDto response = LoginResponseDto.builder()
+                .token(token)
+                .userId(user.getId())
+                .email(user.getEmail())
+                .name(user.getName())
+                .role(user.getRole().name())
+                .build();
+
+        return ResponseEntity.ok(response);
     }
 
-    // 로그인 (간단 예시, JWT 연동 시 토큰 발급)
-    @PostMapping("/auth/login")
-    public ResponseEntity<String> login(@RequestParam String email,
-                                        @RequestParam String password) {
-        return userService.findByEmail(email)
-                .map(user -> {
-                    if (passwordEncoder.matches(password, user.getPassword())) {
-                        // JWT 발급 등
-                        return ResponseEntity.ok("로그인 성공");
-                    } else {
-                        return ResponseEntity.status(401).body("비밀번호 불일치");
-                    }
-                })
-                .orElse(ResponseEntity.status(404).body("사용자 없음"));
+    // 2️⃣ 내 정보 조회 (토큰 필요)
+    @GetMapping("/me")
+    public ResponseEntity<UserDto> getMyInfo(@AuthenticationPrincipal UserDetailsImpl userDetails) {
+
+        User user = userService.findById(userDetails.getId());
+
+        UserDto dto = UserDto.builder()
+                .id(user.getId())
+                .email(user.getEmail())
+                .name(user.getName())
+                .role(user.getRole().name())
+                .build();
+
+        return ResponseEntity.ok(dto);
     }
 }
