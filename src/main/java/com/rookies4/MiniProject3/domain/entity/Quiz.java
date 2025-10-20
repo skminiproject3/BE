@@ -5,6 +5,8 @@ import jakarta.persistence.*;
 import lombok.*;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 
 @Entity
 @Table(name = "quizzes")
@@ -37,4 +39,9 @@ public class Quiz {
     private Difficulty difficulty = Difficulty.EASY;
 
     private LocalDateTime createdAt = LocalDateTime.now();
+
+    // Quiz 1 : N QuizAttempt
+    @OneToMany(mappedBy = "quiz", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<QuizAttempt> attempts = new ArrayList<>();
+
 }

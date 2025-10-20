@@ -41,4 +41,5 @@ public class QuizAttempt {
     public void prePersist() {
         this.createdAt = LocalDateTime.now();
     }
+
 }
