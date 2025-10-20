@@ -1,16 +1,15 @@
-// src/main/java/com/rookies4/MiniProject2/service/AuthService.java
 package com.rookies4.MiniProject3.service;
 
 import com.rookies4.MiniProject3.domain.entity.User;
 import com.rookies4.MiniProject3.dto.AuthDto;
+import com.rookies4.MiniProject3.exception.BusinessLogicException;
 import com.rookies4.MiniProject3.exception.CustomException;
 import com.rookies4.MiniProject3.exception.ErrorCode;
-import com.rookies4.MiniProject3.exception.BusinessLogicException;
 import com.rookies4.MiniProject3.jwt.JwtTokenProvider;
 import com.rookies4.MiniProject3.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
+import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.config.annotation.authentication.builders.AuthenticationManagerBuilder;
 import org.springframework.security.core.Authentication;
@@ -29,10 +28,13 @@ public class AuthService {
 
     @Transactional
     public AuthDto.SignUpResponse signup(AuthDto.SignUpRequest request) {
+        // 이메일 중복 체크
         if (userRepository.existsByEmail(request.getEmail())) {
+            log.warn("회원가입 시도 중 이메일 중복: {}", request.getEmail());
             throw new BusinessLogicException(ErrorCode.USERNAME_DUPLICATION);
         }
 
+        // 회원 생성
         User userToSave = User.builder()
                 .email(request.getEmail())
                 .password(passwordEncoder.encode(request.getPassword()))
@@ -40,6 +42,7 @@ public class AuthService {
                 .build();
 
         User savedUser = userRepository.save(userToSave);
+        log.info("회원가입 성공: {}", savedUser.getEmail());
 
         return AuthDto.SignUpResponse.builder()
                 .userId(savedUser.getId())
@@ -50,33 +53,41 @@ public class AuthService {
 
     @Transactional
     public AuthDto.TokenResponse login(AuthDto.LoginRequest request) {
-        // Login ID/PW 를 기반으로 Authentication 객체 생성
-        UsernamePasswordAuthenticationToken authenticationToken = new UsernamePasswordAuthenticationToken(request.getEmail(), request.getPassword());
+        try {
+            UsernamePasswordAuthenticationToken authenticationToken =
+                    new UsernamePasswordAuthenticationToken(request.getEmail(), request.getPassword());
 
-        // 실제로 검증 (사용자 비밀번호 체크) 이 이루어지는 부분
-        Authentication authentication = authenticationManagerBuilder.getObject().authenticate(authenticationToken);
+            Authentication authentication = authenticationManagerBuilder.getObject().authenticate(authenticationToken);
 
-        // 인증 정보를 기반으로 JWT 토큰 생성
-        AuthDto.TokenResponse tokenResponse = jwtTokenProvider.generateTokens(authentication);
-
-
-        return tokenResponse;
+            return jwtTokenProvider.generateTokens(authentication);
+        } catch (BadCredentialsException ex) {
+            throw new BusinessLogicException(ErrorCode.INVALID_CREDENTIALS);
+        } catch (Exception ex) {
+            throw new CustomException(ErrorCode.INTERNAL_SERVER_ERROR);
+        }
     }
 
     @Transactional
     public AuthDto.TokenResponse reissue(AuthDto.ReissueRequest request) {
-        // Refresh Token 유효성 검증
-        if (!jwtTokenProvider.validateToken(request.getRefreshToken())) {
-            throw new CustomException(ErrorCode.INVALID_TOKEN);
+        try {
+            // Refresh Token 유효성 검증
+            if (!jwtTokenProvider.validateToken(request.getRefreshToken())) {
+                log.warn("재발급 시도 중 유효하지 않은 Refresh Token: {}", request.getRefreshToken());
+                throw new CustomException(ErrorCode.INVALID_TOKEN);
+            }
+
+            // Access Token에서 사용자 정보 가져오기
+            Authentication authentication = jwtTokenProvider.getAuthentication(request.getAccessToken());
+
+            // 새로운 토큰 생성
+            AuthDto.TokenResponse newTokenResponse = jwtTokenProvider.generateTokens(authentication);
+            log.info("토큰 재발급 성공: {}", authentication.getName());
+            return newTokenResponse;
+        } catch (CustomException ce) {
+            throw ce; // 이미 처리된 예외는 그대로 던짐
+        } catch (Exception ex) {
+            log.error("토큰 재발급 중 예외 발생", ex);
+            throw new CustomException(ErrorCode.INTERNAL_SERVER_ERROR);
         }
-
-        // Access Token 에서 사용자 정보 (username) 가져오기 (만료된 토큰이어도 가능)
-        Authentication authentication = jwtTokenProvider.getAuthentication(request.getAccessToken());
-
-        // 새로운 토큰 생성
-        AuthDto.TokenResponse newTokenResponse = jwtTokenProvider.generateTokens(authentication);
-
-        // 토큰 발급
-        return newTokenResponse;
     }
 }

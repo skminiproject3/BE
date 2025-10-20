@@ -25,9 +25,9 @@ public class AuthController {
     }
 
     @PostMapping("/login")
-    public ResponseEntity<AuthDto.TokenResponse> login(@Valid @RequestBody AuthDto.LoginRequest request) {
-        AuthDto.TokenResponse token = authService.login(request);
-        return ResponseEntity.ok(token);
+    public ResponseEntity<AuthDto.TokenResponse> login(@RequestBody @Valid AuthDto.LoginRequest request) {
+        AuthDto.TokenResponse response = authService.login(request);
+        return ResponseEntity.ok(response);
     }
 
     @PostMapping("/reissue")
