@@ -1,7 +1,6 @@
 package com.rookies4.MiniProject3.service;
 
 import com.rookies4.MiniProject3.domain.entity.Progress;
-import com.rookies4.MiniProject3.domain.entity.Upload;
 import com.rookies4.MiniProject3.domain.entity.User;
 import com.rookies4.MiniProject3.repository.ProgressRepository;
 import lombok.RequiredArgsConstructor;

@@ -2,7 +2,6 @@ package com.rookies4.MiniProject3.repository;
 
 import com.rookies4.MiniProject3.domain.entity.Progress;
 import com.rookies4.MiniProject3.domain.entity.User;
-import com.rookies4.MiniProject3.domain.entity.Upload;
 import org.springframework.data.jpa.repository.JpaRepository;
 import java.util.List;
 import java.util.Optional;

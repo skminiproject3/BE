@@ -1,7 +1,6 @@
 package com.rookies4.MiniProject3.service;
 
 import com.rookies4.MiniProject3.domain.entity.Summary;
-import com.rookies4.MiniProject3.domain.entity.Upload;
 import com.rookies4.MiniProject3.repository.SummaryRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;

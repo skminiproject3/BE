@@ -1,7 +1,6 @@
 package com.rookies4.MiniProject3.repository;
 
 import com.rookies4.MiniProject3.domain.entity.Quiz;
-import com.rookies4.MiniProject3.domain.entity.Upload;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.util.List;

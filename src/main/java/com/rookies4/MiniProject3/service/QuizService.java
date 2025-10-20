@@ -1,7 +1,6 @@
 package com.rookies4.MiniProject3.service;
 
 import com.rookies4.MiniProject3.domain.entity.Quiz;
-import com.rookies4.MiniProject3.domain.entity.Upload;
 import com.rookies4.MiniProject3.domain.enums.Difficulty;
 import com.rookies4.MiniProject3.repository.QuizRepository;
 import lombok.RequiredArgsConstructor;
