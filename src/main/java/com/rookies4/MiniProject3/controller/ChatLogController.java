@@ -1,11 +1,8 @@
 package com.rookies4.MiniProject3.controller;
 
 
-import com.rookies4.MiniProject3.domain.entity.ChatLog;
 import com.rookies4.MiniProject3.domain.entity.Content;
-import com.rookies4.MiniProject3.domain.enums.Role;
 import com.rookies4.MiniProject3.domain.entity.User;
-import com.rookies4.MiniProject3.service.ChatLogService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;

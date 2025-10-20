@@ -2,44 +2,32 @@ package com.rookies4.MiniProject3.domain.entity;
 
 import jakarta.persistence.*;
 import lombok.*;
-
 import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "quiz_attempts")
-@Getter
-@Setter
-@NoArgsConstructor
-@AllArgsConstructor
-@Builder
+@Getter @Setter
+@NoArgsConstructor @AllArgsConstructor @Builder
 public class QuizAttempt {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    // 제출한 사용자
+    // FK → progress.id
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "user_id", nullable = false)
-    private User user;
+    @JoinColumn(name = "progress_id", nullable = false)
+    private Progress progress;
 
-    // 퀴즈 문제
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "quiz_id", nullable = false)
-    private Quiz quiz;
+    @Column(nullable = false)
+    private Float score;
 
-    // 사용자가 선택한 답
-    private String selectedAnswer;
+    @Column(nullable = false)
+    private Integer totalQuestions;
 
-    // 정답 여부
-    private Boolean isCorrect;
+    @Column(nullable = false)
+    private Integer correctAnswers;
 
-    // 제출 시각
+    @Column(name = "created_at", columnDefinition = "TIMESTAMP DEFAULT CURRENT_TIMESTAMP")
     private LocalDateTime createdAt;
-
-    @PrePersist
-    public void prePersist() {
-        this.createdAt = LocalDateTime.now();
-    }
-
 }

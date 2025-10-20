@@ -2,7 +2,6 @@ package com.rookies4.MiniProject3.service;
 
 import com.rookies4.MiniProject3.repository.UserRepository;
 import com.rookies4.MiniProject3.domain.entity.User;
-import com.rookies4.MiniProject3.domain.enums.Role;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;

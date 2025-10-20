@@ -7,21 +7,22 @@ import java.time.LocalDateTime;
 import java.util.List;
 
 @Entity
-@Table(name = "uploads")
-@Getter
-@Setter
-@NoArgsConstructor
-@AllArgsConstructor
-@Builder
+@Table(name = "contents")
+@Getter @Setter
+@NoArgsConstructor @AllArgsConstructor @Builder
 public class Content {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @ManyToOne
-    @JoinColumn(name = "user_id")
+    // FK → users.id
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "user_id", nullable = false)
     private User user;
+
+    @Column(nullable = false, length = 255)
+    private String title;
 
     @Column(nullable = false, length = 255)
     private String fileName;
@@ -29,22 +30,22 @@ public class Content {
     @Column(nullable = false, length = 500)
     private String filePath;
 
-    private Long fileSize;
+    @Column
+    private Integer totalChapters;
 
-    private String fileType;
+    @Column(nullable = false, length = 20)
+    private String status;  // PROCESSING / COMPLETED / FAILED
 
-    private LocalDateTime uploadDate = LocalDateTime.now();
+    @Column(name = "created_at", columnDefinition = "TIMESTAMP DEFAULT CURRENT_TIMESTAMP")
+    private LocalDateTime createdAt;
 
-    // 관계
-    @OneToMany(mappedBy = "upload")
+    // 연관관계
+    @OneToMany(mappedBy = "content", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<Summary> summaries;
 
-    @OneToMany(mappedBy = "upload")
+    @OneToMany(mappedBy = "content", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<Quiz> quizzes;
 
-    @OneToMany(mappedBy = "upload")
+    @OneToMany(mappedBy = "content", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<Progress> progresses;
-
-    @OneToMany(mappedBy = "upload")
-    private List<ChatLog> chatLogs;
 }

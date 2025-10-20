@@ -3,32 +3,27 @@ package com.rookies4.MiniProject3.domain.entity;
 import jakarta.persistence.*;
 import lombok.*;
 
-import java.time.LocalDateTime;
-
 @Entity
 @Table(name = "summaries")
-@Getter
-@Setter
-@NoArgsConstructor
-@AllArgsConstructor
-@Builder
+@Getter @Setter
+@NoArgsConstructor @AllArgsConstructor @Builder
 public class Summary {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @ManyToOne
-    @JoinColumn(name = "upload_id")
+    // FK → contents.id
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "content_id", nullable = false)
     private Content content;
 
-    private String chapterTitle;
+    @Column(nullable = false)
+    private Integer chapter;
 
-    @Column(nullable = false, columnDefinition = "TEXT")
+    @Column(columnDefinition = "TEXT", nullable = false)
     private String summaryText;
 
-    @Column(columnDefinition = "TEXT")
+    @Column(columnDefinition = "JSON")
     private String keySentences;
-
-    private LocalDateTime createdAt = LocalDateTime.now();
 }

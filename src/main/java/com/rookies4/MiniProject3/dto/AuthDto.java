@@ -1,6 +1,5 @@
 package com.rookies4.MiniProject3.dto;
 
-import com.rookies4.MiniProject3.domain.enums.Role;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import lombok.Getter;

@@ -1,8 +1,6 @@
 package com.rookies4.MiniProject3.controller;
 
-import com.rookies4.MiniProject3.domain.entity.Log;
 import com.rookies4.MiniProject3.domain.entity.User;
-import com.rookies4.MiniProject3.service.LogService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
