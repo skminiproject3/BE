@@ -42,7 +42,6 @@ public class SecurityConfig {
         return authenticationConfiguration.getAuthenticationManager();
     }
 
-    // ======== 이 부분이 핵심! ========
     @Bean
     public AuthenticationProvider authenticationProvider() {
         DaoAuthenticationProvider authProvider = new DaoAuthenticationProvider();
@@ -50,7 +49,6 @@ public class SecurityConfig {
         authProvider.setPasswordEncoder(passwordEncoder());
         return authProvider;
     }
-    // ================================
 
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
@@ -72,7 +70,7 @@ public class SecurityConfig {
                         .requestMatchers("/h2-console/**", "/api/auth/login",  "/api/auth/**", "/api/content/**", "/api/progress").permitAll()
                         .anyRequest().authenticated()
                 )
-                // ======== 이 부분이 핵심! ========
+
                 // 직접 만든 JwtAuthenticationFilter를 UsernamePasswordAuthenticationFilter 전에 실행
                 .addFilterBefore(new JwtAuthenticationFilter(jwtTokenProvider), UsernamePasswordAuthenticationFilter.class);
         return http.build();

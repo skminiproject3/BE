@@ -26,4 +26,13 @@ public class Summary {
 
     @Column(columnDefinition = "JSON")
     private String keySentences;
+
+    // 빌더 패턴을 위한 생성자
+    @Builder
+    public Summary(Content content, int chapter, String summaryText, String keySentences) {
+        this.content = content;
+        this.chapter = chapter;
+        this.summaryText = summaryText;
+        this.keySentences = keySentences;
+    }
 }
