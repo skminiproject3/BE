@@ -67,7 +67,8 @@ public class SecurityConfig {
 
                 .authorizeHttpRequests(auth -> auth
                         // ==================== [수정] /api/groups GET 요청 허용 ====================
-                        .requestMatchers("/h2-console/**", "/api/auth/login",  "/api/auth/**", "/api/content/**", "/api/progress").permitAll()
+                        .requestMatchers("/h2-console/**",  "/api/auth/**", "/api/progress/**").permitAll()
+                        .requestMatchers("/api/contents/").authenticated()
                         .anyRequest().authenticated()
                 )
 
@@ -75,4 +76,5 @@ public class SecurityConfig {
                 .addFilterBefore(new JwtAuthenticationFilter(jwtTokenProvider), UsernamePasswordAuthenticationFilter.class);
         return http.build();
     }
+
 }
