@@ -70,7 +70,9 @@ public class ContentService {
     @Async // 이 메소드는 별도의 스레드에서 비동기적으로 실행됨
     @Transactional
     public void processContentAsync(Long contentId) {
-        log.info("[Async] AI processing started for contentId: {}", contentId);
+        log.info("[Async] 업로드 파일(contentId: {})에 대한 AI 작업 시작...", contentId);
+
+        // DB에서 AI 처리를 할 Content 엔티티 조회
         Content content = contentRepository.findById(contentId)
                 .orElseThrow(() -> new CustomException(ErrorCode.CONTENT_NOT_FOUND));
 
@@ -87,17 +89,19 @@ public class ContentService {
 
             content.updateTotalChapters(2); // 분석된 총 챕터 수 업데이트
             // --- 시뮬레이션 종료 ---
-            // 처리 완료 후 상태를 COMPLETED로 변경
+
+            // 처리 완료 후 상태를 COMPLETED 로 변경
             content.changeStatus(ContentStatus.COMPLETED);
+
+            // 상태가 COMPLETED 로 변경된 Content 엔티티를 DB에 저장 (상태 업데이트)
             contentRepository.save(content);
-            // TODO: 문구 한글로 변경
-            log.info("[Async] AI processing COMPLETED for contentId: {}", contentId);
+
+            log.info("[Async] 업로드 파일(contentId: {})에 대한 AI 작업 완료!", contentId);
 
         } catch (Exception e) {
-            // TODO: 문구 한글로 변경
-            log.error("[Async] AI processing FAILED for contentId: {}", contentId, e);
+            log.error("[ERROR] 업로드 파일(contentId: {})에 대한 AI 작업 실패", contentId, e);
             content.changeStatus(ContentStatus.FAILED);
-            contentRepository.save(content);
+            contentRepository.save(content); // // 상태가 FAILED 로 변경된 Content 엔티티를 DB에 저장 (상태 업데이트)
         }
     }
 
