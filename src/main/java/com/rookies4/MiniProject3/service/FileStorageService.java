@@ -21,6 +21,7 @@ public class FileStorageService {
         try {
             Files.createDirectories(this.fileStorageLocation);
         } catch (Exception ex) {
+            // TODO: 예외처리 코드 수정
             throw new RuntimeException("Could not create the directory where the uploaded files will be stored.", ex);
         }
     }
@@ -32,6 +33,7 @@ public class FileStorageService {
 
         try {
             if (storedFileName.contains("..")) {
+                // TODO: 예외처리 코드 수정
                 throw new RuntimeException("Filename contains invalid path sequence " + storedFileName);
             }
 
@@ -40,6 +42,7 @@ public class FileStorageService {
 
             return targetLocation.toString();
         } catch (IOException ex) {
+            // TODO: 예외처리 코드 수정
             throw new RuntimeException("Could not store file " + storedFileName + ". Please try again!", ex);
         }
     }
