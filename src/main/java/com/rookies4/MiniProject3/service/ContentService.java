@@ -91,12 +91,13 @@ public class ContentService {
         }
     }
 
-    // AI 처리 상태 조회 메서드
-    // 프론트가 주기적으로 호출해 줘야 함
-    public ContentDto.StatusResponse getContentStatus(Long contentId) {
+    // AI 처리 상태 변경 메서드
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public void updateContentStatus(Long contentId, ContentStatus status) {
         Content content = contentRepository.findById(contentId)
                 .orElseThrow(() -> new CustomException(ErrorCode.CONTENT_NOT_FOUND));
 
-        return new ContentDto.StatusResponse(content.getStatus().name());
+        content.changeStatus(status);
+        contentRepository.save(content); // 상태 변경(COMPLETED 또는 FAILED) 저장
     }
 }
