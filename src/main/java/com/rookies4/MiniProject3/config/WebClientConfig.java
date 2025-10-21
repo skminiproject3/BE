@@ -17,10 +17,10 @@ import reactor.netty.http.client.HttpClient;
 @Configuration
 public class WebClientConfig {
 
-    @Value("${ai.server.base-url}")
+    @Value("${ai.server.base-url:http://localhost:9999}")
     private String aiServerBaseUrl; // application.properties 에서 URL 주입
 
-    @Value("${ai.server.api-key}")
+    @Value("${ai.server.api-key:dummy-key}")
     private String aiServerApiKey; // application.properties 에서 API KEY 주입
 
     @Bean
