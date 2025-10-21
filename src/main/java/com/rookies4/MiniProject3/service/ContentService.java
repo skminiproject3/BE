@@ -96,6 +96,12 @@ public class ContentService {
         }
     }
 
+    public Long findUserIdByEmail(String email) {
+        return userRepository.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("해당 이메일의 사용자를 찾을 수 없습니다."))
+                .getId();
+    }
+
     public ContentDto.StatusResponse getContentStatus(Long contentId) {
         Content content = contentRepository.findById(contentId)
                 .orElseThrow(() -> new CustomException(ErrorCode.CONTENT_NOT_FOUND));

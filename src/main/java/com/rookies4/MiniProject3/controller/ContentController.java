@@ -1,4 +1,3 @@
-
 package com.rookies4.MiniProject3.controller;
 
 import com.rookies4.MiniProject3.dto.ContentDto;
@@ -6,10 +5,10 @@ import com.rookies4.MiniProject3.dto.SummaryDto;
 import com.rookies4.MiniProject3.dto.SummaryDto.Response;
 import com.rookies4.MiniProject3.service.ContentService;
 import java.util.List;
-import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -29,11 +28,16 @@ public class ContentController {
     @PostMapping
     public ResponseEntity<ContentDto.UploadResponse> uploadContent(
             @RequestParam("file") MultipartFile file,
-            @RequestParam("title") String title) {
+            @RequestParam("title") String title,
+            Authentication authentication) { // ✅ 현재 로그인한 사용자 정보 주입
 
-        // TODO: JWT 토큰에서 사용자 ID 추출하기. 일단 임시로 1L 사용.
-        Long currentUserId = 1L;
+        // JWT 인증 정보에서 사용자 이메일 추출
+        String userEmail = authentication.getName();
 
+        // 이메일로 user_id 조회
+        Long currentUserId = contentService.findUserIdByEmail(userEmail);
+
+        // 파일 업로드 및 처리
         ContentDto.UploadResponse response = contentService.uploadAndProcessFile(file, title, currentUserId);
 
         return ResponseEntity.status(HttpStatus.ACCEPTED).body(response);
@@ -43,7 +47,6 @@ public class ContentController {
     @GetMapping("/{contentId}/status")
     public ResponseEntity<ContentDto.StatusResponse> getContentStatus(@PathVariable Long contentId) {
         ContentDto.StatusResponse response = contentService.getContentStatus(contentId);
-
         return ResponseEntity.ok(response);
     }
 
@@ -51,7 +54,6 @@ public class ContentController {
     @GetMapping("/{contentId}/summaries")
     public ResponseEntity<List<Response>> getSummaries(@PathVariable Long contentId) {
         List<SummaryDto.Response> response = contentService.getSummaries(contentId);
-
         return ResponseEntity.ok(response);
     }
 }
