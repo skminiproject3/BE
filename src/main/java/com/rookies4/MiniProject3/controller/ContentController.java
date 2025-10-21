@@ -5,9 +5,10 @@ import com.rookies4.MiniProject3.domain.entity.User;
 import com.rookies4.MiniProject3.dto.ContentDto;
 import com.rookies4.MiniProject3.dto.SummaryDto;
 import com.rookies4.MiniProject3.dto.SummaryDto.Response;
+import com.rookies4.MiniProject3.exception.EntityNotFoundException;
+import com.rookies4.MiniProject3.exception.ErrorCode;
 import com.rookies4.MiniProject3.repository.UserRepository;
 import com.rookies4.MiniProject3.service.ContentService;
-import jakarta.persistence.EntityNotFoundException;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -42,7 +43,7 @@ public class ContentController {
 
         // 2. 이메일을 사용해 User 엔티티 조회 -> 사용자 Id 확보
         User user = userRepository.findByEmail(email)
-                .orElseThrow(() -> new EntityNotFoundException("[ERROR] 해당 이메일을 가진 유저를 찾을 수 없습니다."));
+                .orElseThrow(() -> new EntityNotFoundException(ErrorCode.USER_NOT_FOUND));
 
         // 3. 추출한 사용자 Id 사용
         Long currentUserId = user.getId();
