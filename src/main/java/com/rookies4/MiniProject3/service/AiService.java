@@ -23,8 +23,6 @@ import org.springframework.web.reactive.function.client.WebClientResponseExcepti
 @RequiredArgsConstructor
 public class AiService {
 
-    // TODO: WebClient 주입
-    // WebClient 는 별도의 @Configuration 파일에서 AI 서버의 baseUrl, API Key 헤더 등을 설정해 Bean으로 등록해야 한다.
     private final WebClient aiWebClient;
 
     /**
