@@ -1,15 +1,19 @@
 
 package com.rookies4.MiniProject3.controller;
 
+import com.rookies4.MiniProject3.domain.entity.User;
 import com.rookies4.MiniProject3.dto.ContentDto;
 import com.rookies4.MiniProject3.dto.SummaryDto;
 import com.rookies4.MiniProject3.dto.SummaryDto.Response;
+import com.rookies4.MiniProject3.repository.UserRepository;
 import com.rookies4.MiniProject3.service.ContentService;
+import jakarta.persistence.EntityNotFoundException;
 import java.util.List;
-import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -24,15 +28,24 @@ import org.springframework.web.multipart.MultipartFile;
 public class ContentController {
 
     private final ContentService contentService;
+    private final UserRepository userRepository;
 
     // 문서 업로드 및 처리 요청
     @PostMapping
     public ResponseEntity<ContentDto.UploadResponse> uploadContent(
             @RequestParam("file") MultipartFile file,
-            @RequestParam("title") String title) {
+            @RequestParam("title") String title,
+            @AuthenticationPrincipal UserDetails userDetails) {
 
-        // TODO: JWT 토큰에서 사용자 ID 추출하기. 일단 임시로 1L 사용.
-        Long currentUserId = 1L;
+        // 1. UserDetails 에서 이메일(username) 추출
+        String email = userDetails.getUsername();
+
+        // 2. 이메일을 사용해 User 엔티티 조회 -> 사용자 Id 확보
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new EntityNotFoundException("[ERROR] 해당 이메일을 가진 유저를 찾을 수 없습니다."));
+
+        // 3. 추출한 사용자 Id 사용
+        Long currentUserId = user.getId();
 
         ContentDto.UploadResponse response = contentService.uploadAndProcessFile(file, title, currentUserId);
 
