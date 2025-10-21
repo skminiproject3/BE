@@ -67,7 +67,8 @@ public class ContentService {
                 savedContent.getStatus().name());
     }
 
-    @Async // 이 메소드는 별도의 스레드에서 비동기적으로 실행됨
+    // AI 처리 메서드
+    @Async
     @Transactional
     public void processContentAsync(Long contentId) {
         log.info("[Async] 업로드 파일(contentId: {})에 대한 AI 작업 시작...", contentId);
@@ -105,25 +106,12 @@ public class ContentService {
         }
     }
 
+    // AI 처리 상태 조회 메서드
+    // 프론트가 주기적으로 호출해 줘야 함
     public ContentDto.StatusResponse getContentStatus(Long contentId) {
         Content content = contentRepository.findById(contentId)
                 .orElseThrow(() -> new CustomException(ErrorCode.CONTENT_NOT_FOUND));
 
         return new ContentDto.StatusResponse(content.getStatus().name());
-    }
-
-    public List<Response> getSummaries(Long contentId) {
-        Content content = contentRepository.findById(contentId)
-                .orElseThrow(() -> new CustomException(ErrorCode.CONTENT_NOT_FOUND));
-
-        if (content.getStatus() != ContentStatus.COMPLETED) {
-            throw new CustomException(ErrorCode.PROCESSING_NOT_COMPLETED);
-        }
-
-        List<Summary> summaries = summaryRepository.findByContentIdOrderByChapterAsc(contentId);
-
-        return summaries.stream()
-                .map(summary -> new SummaryDto.Response(summary.getChapter(), summary.getSummaryText()))
-                .collect(Collectors.toList());
     }
 }
