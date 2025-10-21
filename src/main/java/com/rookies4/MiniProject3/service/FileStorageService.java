@@ -1,5 +1,7 @@
 package com.rookies4.MiniProject3.service;
 
+import com.rookies4.MiniProject3.exception.CustomException;
+import com.rookies4.MiniProject3.exception.ErrorCode;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -21,29 +23,28 @@ public class FileStorageService {
         try {
             Files.createDirectories(this.fileStorageLocation);
         } catch (Exception ex) {
-            // TODO: 예외처리 코드 수정
-            throw new RuntimeException("Could not create the directory where the uploaded files will be stored.", ex);
+            throw new CustomException(ErrorCode.INTERNAL_SERVER_ERROR);
         }
     }
 
+    // 파일을 저장하고, 저장된 파일명(UUID)을 반환하는 메서드
     public String store(MultipartFile file) {
         String originalFileName = StringUtils.cleanPath(file.getOriginalFilename());
-        String extension = originalFileName.substring(originalFileName.lastIndexOf("."));
-        String storedFileName = UUID.randomUUID() + extension;
 
         try {
-            if (storedFileName.contains("..")) {
-                // TODO: 예외처리 코드 수정
-                throw new RuntimeException("Filename contains invalid path sequence " + storedFileName);
+            if (originalFileName.contains("..")) {
+                throw new CustomException(ErrorCode.BAD_REQUEST);
             }
+
+            String extension = originalFileName.substring(originalFileName.lastIndexOf("."));
+            String storedFileName = UUID.randomUUID() + extension;
 
             Path targetLocation = this.fileStorageLocation.resolve(storedFileName);
             Files.copy(file.getInputStream(), targetLocation, StandardCopyOption.REPLACE_EXISTING);
 
-            return targetLocation.toString();
+            return storedFileName;
         } catch (IOException ex) {
-            // TODO: 예외처리 코드 수정
-            throw new RuntimeException("Could not store file " + storedFileName + ". Please try again!", ex);
+            throw new CustomException(ErrorCode.INTERNAL_SERVER_ERROR);
         }
     }
 }
