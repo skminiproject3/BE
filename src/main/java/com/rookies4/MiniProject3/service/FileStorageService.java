@@ -3,12 +3,15 @@ package com.rookies4.MiniProject3.service;
 import com.rookies4.MiniProject3.exception.CustomException;
 import com.rookies4.MiniProject3.exception.ErrorCode;
 import java.io.IOException;
+import java.net.MalformedURLException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
 import java.util.UUID;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.core.io.Resource;
+import org.springframework.core.io.UrlResource;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 import org.springframework.web.multipart.MultipartFile;
@@ -44,6 +47,22 @@ public class FileStorageService {
 
             return storedFileName;
         } catch (IOException ex) {
+            throw new CustomException(ErrorCode.INTERNAL_SERVER_ERROR);
+        }
+    }
+
+    // 저장된 파일명을 기반으로 파일을 Resource 객체로 로드하는 메서드
+    public Resource loadAsResource(String storedFileName) {
+        try {
+            Path filePath = this.fileStorageLocation.resolve(storedFileName).normalize();
+            Resource resource = new UrlResource(filePath.toUri());
+
+            if (resource.exists()) {
+                return resource;
+            } else {
+                throw new CustomException(ErrorCode.CONTENT_NOT_FOUND);
+            }
+        } catch (MalformedURLException e) {
             throw new CustomException(ErrorCode.INTERNAL_SERVER_ERROR);
         }
     }
