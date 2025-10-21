@@ -100,4 +100,12 @@ public class ContentService {
         content.changeStatus(status);
         contentRepository.save(content); // 상태 변경(COMPLETED 또는 FAILED) 저장
     }
+
+    // AI 처리 상태 조회 메서드 -> 프론트가 이 API를 주기적으로 호출
+    public ContentDto.StatusResponse getContentStatus(Long contentId) {
+        Content content = contentRepository.findById(contentId)
+                .orElseThrow(() -> new CustomException(ErrorCode.CONTENT_NOT_FOUND));
+
+        return new ContentDto.StatusResponse(content.getStatus().name());
+    }
 }
