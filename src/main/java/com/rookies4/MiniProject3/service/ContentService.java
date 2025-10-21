@@ -87,9 +87,11 @@ public class ContentService {
             // 처리 완료 후 상태를 COMPLETED로 변경
             content.changeStatus(ContentStatus.COMPLETED);
             contentRepository.save(content);
+            // TODO: 문구 한글로 변경
             log.info("[Async] AI processing COMPLETED for contentId: {}", contentId);
 
         } catch (Exception e) {
+            // TODO: 문구 한글로 변경
             log.error("[Async] AI processing FAILED for contentId: {}", contentId, e);
             content.changeStatus(ContentStatus.FAILED);
             contentRepository.save(content);
