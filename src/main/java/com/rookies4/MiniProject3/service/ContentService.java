@@ -33,20 +33,23 @@ public class ContentService {
     private final SummaryRepository summaryRepository;
     private final FileStorageService fileStorageService;
 
+    // 파일 업로드 및 처리 요청 메서드
     @Transactional
     public ContentDto.UploadResponse uploadAndProcessFile(MultipartFile file, String title, Long userId) {
+        // 파일이 비어있는지 검사
         if (file.isEmpty()) {
             throw new CustomException(ErrorCode.FILE_NOT_ATTACHED);
         }
 
+        // 유저가 존재하는지 검사
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
 
-        // 1. 파일 저장
+        // 파일 저장
         String originalFileName = file.getOriginalFilename();
         String storedFilePath = fileStorageService.store(file);
 
-        // 2. Content 엔티티 생성 및 DB 저장 (상태: PROCESSING)
+        // Content 엔티티 생성 및 DB 저장 (상태: PROCESSING)
         Content content = Content.builder()
                 .user(user)
                 .title(title)
@@ -57,7 +60,7 @@ public class ContentService {
 
         Content savedContent = contentRepository.save(content);
 
-        // 3. 비동기로 AI 처리 시작
+        // 비동기로 AI 처리 시작
         processContentAsync(savedContent.getId());
 
         return new ContentDto.UploadResponse(savedContent.getId(), savedContent.getTitle(),
