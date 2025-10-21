@@ -27,7 +27,12 @@ public enum ErrorCode {
     // Content
     FILE_NOT_ATTACHED(HttpStatus.BAD_REQUEST, "FILE_NOT_ATTACHED","[ERROR] 처리할 파일을 첨부해주세요."),
     CONTENT_NOT_FOUND(HttpStatus.NOT_FOUND, "CONTENT_NOT_FOUND", "[ERROR] 해당 콘텐츠를 찾을 수 없습니다."),
-    PROCESSING_NOT_COMPLETED(HttpStatus.CONFLICT, "PROCESSING_NOT_COMPLETED", "[ERROR] 콘텐츠 처리가 아직 완료되지 않았습니다.");
+    PROCESSING_NOT_COMPLETED(HttpStatus.CONFLICT, "PROCESSING_NOT_COMPLETED", "[ERROR] 콘텐츠 처리가 아직 완료되지 않았습니다."),
+
+    // AI
+    AI_PROCESSING_FAILED(HttpStatus.BAD_GATEWAY , "AI_PROCESSING_FAILED","[ERROR] AI 서버가 벡터화에 실패했습니다."),
+    AI_SERVER_ERROR(HttpStatus.SERVICE_UNAVAILABLE, "AI_SERVER_ERROR", "[ERROR] AI 서버에 벡터화 요청 중 알 수 없는 오류가 발생했습니다.");
+
 
     private final HttpStatus status;
     private final String code;
