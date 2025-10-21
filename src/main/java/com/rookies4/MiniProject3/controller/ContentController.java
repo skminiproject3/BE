@@ -60,12 +60,4 @@ public class ContentController {
 
         return ResponseEntity.ok(response);
     }
-
-    // 챕터별 요약 목록 조회
-    @GetMapping("/{contentId}/summaries")
-    public ResponseEntity<List<Response>> getSummaries(@PathVariable Long contentId) {
-        List<SummaryDto.Response> response = contentService.getSummaries(contentId);
-
-        return ResponseEntity.ok(response);
-    }
 }
