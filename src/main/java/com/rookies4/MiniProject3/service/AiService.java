@@ -16,6 +16,9 @@ import org.springframework.web.reactive.function.client.WebClient;
 import org.springframework.web.reactive.function.client.WebClientResponseException;
 
 import java.io.File;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
 import java.time.Duration;
 import java.util.List;
 import java.util.Map;
@@ -29,8 +32,37 @@ public class AiService {
     private final ContentRepository contentRepository;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
+    // Spring에서 설정된 업로드 폴더 (FastAPI 쪽 폴더로 맞춰야 함)
     @Value("${file.upload-dir}")
     private String uploadDir;
+
+    // FastAPI 실제 실행 폴더
+    private static final String FASTAPI_UPLOAD_DIR = "C:/Users/user/Desktop/AI-main/AI-main/uploaded_pdfs";
+
+    /**
+     * ✅ 파일을 FastAPI 폴더로 복사 후 그 절대경로 반환
+     */
+    private String copyFileToFastApiDir(File sourceFile) {
+        try {
+            if (!sourceFile.exists()) {
+                log.error("❌ 복사할 파일이 존재하지 않습니다: {}", sourceFile.getAbsolutePath());
+                throw new CustomException(ErrorCode.FILE_NOT_ATTACHED);
+            }
+
+            Path targetDir = Path.of(FASTAPI_UPLOAD_DIR);
+            Files.createDirectories(targetDir);
+
+            Path copiedPath = targetDir.resolve(sourceFile.getName());
+            Files.copy(sourceFile.toPath(), copiedPath, StandardCopyOption.REPLACE_EXISTING);
+
+            log.info("📂 FastAPI 접근 가능 폴더로 파일 복사 완료 → {}", copiedPath);
+            return copiedPath.toString();
+
+        } catch (Exception e) {
+            log.error("❌ 파일 복사 중 오류 발생: {}", e.getMessage());
+            throw new CustomException(ErrorCode.FILE_NOT_ATTACHED);
+        }
+    }
 
     /**
      * ✅ PDF 요약 요청 (FastAPI → /summarize/full)
@@ -43,11 +75,11 @@ public class AiService {
 
         try {
             File file = fileResource.getFile();
-            String absolutePath = file.getAbsolutePath();
+            String fastApiPath = copyFileToFastApiDir(file);
 
-            Map<String, Object> requestBody = Map.of("pdf_paths", List.of(absolutePath));
+            Map<String, Object> requestBody = Map.of("pdf_paths", List.of(fastApiPath));
 
-            // ✅ 무조건 문자열로 응답받기
+            // ✅ FastAPI 호출
             String rawResponse = aiWebClient.post()
                     .uri("/summarize/full")
                     .contentType(MediaType.APPLICATION_JSON)
@@ -63,7 +95,6 @@ public class AiService {
             }
 
             Map<String, Object> response = objectMapper.readValue(rawResponse, Map.class);
-
             if (response.containsKey("summary")) {
                 String summary = response.get("summary").toString();
                 content.changeStatus(ContentStatus.COMPLETED);
@@ -97,28 +128,20 @@ public class AiService {
         Content content = contentRepository.findById(contentId)
                 .orElseThrow(() -> new CustomException(ErrorCode.CONTENT_NOT_FOUND));
 
-        String pdfPath = content.getFilePath();
-        File file = new File(pdfPath);
-        if (!file.isAbsolute()) {
-            pdfPath = new File(uploadDir, pdfPath).getAbsolutePath();
+        File sourceFile = new File(content.getFilePath());
+        if (!sourceFile.isAbsolute()) {
+            sourceFile = new File(uploadDir, content.getFilePath());
         }
 
-        File finalFile = new File(pdfPath);
-        if (!finalFile.exists()) {
-            log.error("❌ FastAPI로 보낼 파일이 존재하지 않습니다: {}", pdfPath);
-            throw new CustomException(ErrorCode.FILE_NOT_ATTACHED);
-        }
-
-        log.info("📄 FastAPI로 전달할 파일 경로: {}", pdfPath);
+        String fastApiPath = copyFileToFastApiDir(sourceFile);
 
         Map<String, Object> requestBody = Map.of(
-                "pdf_paths", List.of(pdfPath),
+                "pdf_paths", List.of(fastApiPath),
                 "num_questions", count,
                 "difficulty", difficulty
         );
 
         try {
-            // ✅ 문자열로 먼저 응답받기
             String rawResponse = aiWebClient.post()
                     .uri("/quiz/generate")
                     .contentType(MediaType.APPLICATION_JSON)
@@ -135,8 +158,7 @@ public class AiService {
                 throw new CustomException(ErrorCode.AI_PROCESSING_FAILED);
             }
 
-            Map<String, Object> response = objectMapper.readValue(rawResponse, Map.class);
-            return response;
+            return objectMapper.readValue(rawResponse, Map.class);
 
         } catch (WebClientResponseException e) {
             log.error("[AI 퀴즈 통신 실패] Status: {}, Body: {}", e.getStatusCode(), e.getResponseBodyAsString());
@@ -149,7 +171,7 @@ public class AiService {
     }
 
     /**
-     * ✅ 요약문 저장 (임시)
+     * ✅ 요약문 저장
      */
     private void saveSummaryToDB(Content content, String summaryText) {
         try {

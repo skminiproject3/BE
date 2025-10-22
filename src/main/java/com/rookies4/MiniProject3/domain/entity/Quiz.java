@@ -25,7 +25,8 @@ public class Quiz {
     @Column(columnDefinition = "TEXT", nullable = false)
     private String question;
 
-    @Column(columnDefinition = "JSON", nullable = false)
+    // ✅ 주관식일 땐 null 허용 (객관식일 때만 JSON 구조로 저장)
+    @Column(columnDefinition = "JSON", nullable = true)
     private String options;
 
     @Column(nullable = false, length = 255)
