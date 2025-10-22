@@ -20,9 +20,6 @@ public class WebClientConfig {
     @Value("${ai.server.base-url:http://localhost:9999}")
     private String aiServerBaseUrl; // application.properties 에서 URL 주입
 
-    @Value("${ai.server.api-key:dummy-key}")
-    private String aiServerApiKey; // application.properties 에서 API KEY 주입
-
     @Bean
     public WebClient aiWebClient() {
         // 기본 타임아웃 설정
@@ -38,7 +35,6 @@ public class WebClientConfig {
                 .baseUrl(aiServerBaseUrl) // AI 서버 기본 URL 설정
                 .clientConnector(new ReactorClientHttpConnector(httpClient)) // 타임아웃 설정 적용
                 .defaultHeader(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE) // 기본 헤더 (JSON 통신)
-                .defaultHeader("Authorization", "Bearer " + aiServerApiKey) // AI 서버 인증용 API 키 헤더
                 .build();
     }
 }
