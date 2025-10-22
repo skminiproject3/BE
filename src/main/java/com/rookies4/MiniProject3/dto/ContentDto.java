@@ -1,5 +1,6 @@
 package com.rookies4.MiniProject3.dto;
 
+import lombok.Builder;
 import lombok.Getter;
 
 public class ContentDto {
@@ -22,6 +23,23 @@ public class ContentDto {
         private String status;
 
         public StatusResponse(String status) {
+            this.status = status;
+        }
+    }
+
+    // 파일 목록 조회를 위한 DTO
+    @Getter
+    public static class ContentInfo {
+        private Long contentId;
+        private String title;
+        private String fileName;
+        private String status;
+
+        @Builder
+        public ContentInfo(Long contentId, String title, String fileName, String status) {
+            this.contentId = contentId;
+            this.title = title;
+            this.fileName = fileName;
             this.status = status;
         }
     }
