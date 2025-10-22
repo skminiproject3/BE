@@ -58,6 +58,9 @@ public class Content {
     @OneToMany(mappedBy = "content")
     private List<Progress> progresses = new ArrayList<>();
 
+    @Column(name = "ai_server_path")
+    private String aiServerPath; // AI 서버에 저장된 파일 경로
+
     // 빌더 패턴을 위한 생성자
     @Builder
     public Content(User user, String title, String fileName, String filePath, ContentStatus status) {
