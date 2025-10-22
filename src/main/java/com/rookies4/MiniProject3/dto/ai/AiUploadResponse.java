@@ -12,6 +12,6 @@ import lombok.NoArgsConstructor;
 public class AiUploadResponse {
     private String message;
 
-    @JsonProperty("pdf_paths")
+    @JsonProperty("saved_files")
     private List<String> pdfPaths;
 }
