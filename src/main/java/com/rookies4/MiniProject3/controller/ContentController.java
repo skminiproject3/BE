@@ -53,6 +53,22 @@ public class ContentController {
         return ResponseEntity.status(HttpStatus.ACCEPTED).body(response);
     }
 
+    // 현재 로그인한 사용자가 업로드한 모든 파일 목록 조회
+    @GetMapping
+    public ResponseEntity<List<ContentDto.ContentInfo>> getUserContents(
+            @AuthenticationPrincipal UserDetails userDetails) {
+
+        // 사용자 ID 찾기
+        String email = userDetails.getUsername();
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new EntityNotFoundException(ErrorCode.USER_NOT_FOUND));
+
+        // 서비스 호출
+        List<ContentDto.ContentInfo> contentList = contentService.getUserContents(user.getId());
+
+        return ResponseEntity.ok(contentList);
+    }
+
     // 콘텐츠 처리 상태 조회
     @GetMapping("/{contentId}/status")
     public ResponseEntity<ContentDto.StatusResponse> getContentStatus(@PathVariable Long contentId) {

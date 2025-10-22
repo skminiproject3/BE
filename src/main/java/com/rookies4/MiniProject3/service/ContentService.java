@@ -9,6 +9,8 @@ import com.rookies4.MiniProject3.exception.CustomException;
 import com.rookies4.MiniProject3.exception.ErrorCode;
 import com.rookies4.MiniProject3.repository.ContentRepository;
 import com.rookies4.MiniProject3.repository.UserRepository;
+import java.util.List;
+import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.io.Resource;
@@ -95,6 +97,26 @@ public class ContentService {
             log.error("[ERROR] 업로드 파일(contentId: {})에 대한 AI 작업 실패", contentId, e);
             updateContentFailed(contentId);
         }
+    }
+
+    // 사용자가 업로드한 모든 파일 목록 조회
+    public List<ContentDto.ContentInfo> getUserContents(Long userId) {
+        // 사용자 엔티티 조회
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
+
+        // 해당 사용자의 모든 Content 조회
+        List<Content> contents = contentRepository.findAllByUser(user);
+
+        // Content 목록을 ContentDto.ContentInfo 목록으로 변환
+        return contents.stream()
+                .map(content -> ContentDto.ContentInfo.builder()
+                        .contentId(content.getId())
+                        .title(content.getTitle())
+                        .fileName(content.getFileName())
+                        .status(content.getStatus().name())
+                        .build())
+                .collect(Collectors.toList());
     }
 
     // AI 처리 성공 시 호출
