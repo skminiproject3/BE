@@ -40,23 +40,23 @@ public class ContentService {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
 
-        // 파일 저장
+        // 파일 저장 (UUID 포함된 파일명)
         String originalFileName = file.getOriginalFilename();
-        String storedFilePath = fileStorageService.store(file);
+        String storedFileName = fileStorageService.store(file);
 
         // Content 엔티티 생성 및 DB 저장 (상태: PROCESSING)
         Content content = Content.builder()
                 .user(user)
                 .title(title)
                 .fileName(originalFileName)
-                .filePath(storedFilePath)
+                .filePath(storedFileName)
                 .status(ContentStatus.PROCESSING)
                 .build();
 
         Content savedContent = contentRepository.save(content);
 
         // 비동기로 AI 처리 시작
-        processContentAsync(savedContent.getId());
+        processContentAsync(savedContent.getId(), savedContent.getTitle());
 
         return new ContentDto.UploadResponse(savedContent.getId(), savedContent.getTitle(),
                 savedContent.getStatus().name());
@@ -64,7 +64,7 @@ public class ContentService {
 
     // AI 처리 메서드
     @Async
-    public void processContentAsync(Long contentId) {
+    public void processContentAsync(Long contentId, String title) {
         log.info("[Async] 업로드 파일(contentId: {})에 대한 AI 작업 시작...", contentId);
 
         // DB 에서 AI 처리를 할 Content 엔티티 조회
@@ -77,7 +77,7 @@ public class ContentService {
             Resource fileResource = fileStorageService.loadAsResource(storedFileName);
 
             // 2. AI 서비스 호출 (파일 전달 & 벡터화 요청)
-            aiService.processAndVectorize(contentId, fileResource);
+            aiService.processAndVectorize(contentId, title, fileResource);
 
             // 3. 처리 완료 후 상태를 COMPLETED 로 변경
             updateContentStatus(contentId, ContentStatus.COMPLETED);
