@@ -4,6 +4,7 @@ import com.rookies4.MiniProject3.domain.entity.Content;
 import com.rookies4.MiniProject3.domain.entity.User;
 import com.rookies4.MiniProject3.domain.enums.ContentStatus;
 import com.rookies4.MiniProject3.dto.ContentDto;
+import com.rookies4.MiniProject3.dto.ai.AiUploadResponse;
 import com.rookies4.MiniProject3.exception.CustomException;
 import com.rookies4.MiniProject3.exception.ErrorCode;
 import com.rookies4.MiniProject3.repository.ContentRepository;
@@ -56,7 +57,7 @@ public class ContentService {
         Content savedContent = contentRepository.save(content);
 
         // 비동기로 AI 처리 시작
-        processContentAsync(savedContent.getId(), savedContent.getTitle());
+        processContentAsync(savedContent.getId());
 
         return new ContentDto.UploadResponse(savedContent.getId(), savedContent.getTitle(),
                 savedContent.getStatus().name());
@@ -64,41 +65,59 @@ public class ContentService {
 
     // AI 처리 메서드
     @Async
-    public void processContentAsync(Long contentId, String title) {
+    public void processContentAsync(Long contentId) {
         log.info("[Async] 업로드 파일(contentId: {})에 대한 AI 작업 시작...", contentId);
 
-        // DB 에서 AI 처리를 할 Content 엔티티 조회
-        Content content = contentRepository.findById(contentId)
-                .orElseThrow(() -> new CustomException(ErrorCode.CONTENT_NOT_FOUND));
 
         try {
-            // 1. 파일 로드
+            // 1. 파일 로드 (DB 에서 엔티티 조회)
+            Content content = contentRepository.findById(contentId)
+                .orElseThrow(() -> new CustomException(ErrorCode.CONTENT_NOT_FOUND));
+
             String storedFileName = content.getFilePath();
             Resource fileResource = fileStorageService.loadAsResource(storedFileName);
 
-            // 2. AI 서비스 호출 (파일 전달 & 벡터화 요청)
-            aiService.processAndVectorize(contentId, title, fileResource);
+            // 2. AI 서비스 호출 (AiUploadResponse 응답 받기)
+            AiUploadResponse response = aiService.processAndVectorize(contentId, fileResource);
 
-            // 3. 처리 완료 후 상태를 COMPLETED 로 변경
-            updateContentStatus(contentId, ContentStatus.COMPLETED);
+            // 3. AI 서버 경로 추출
+            if (response == null || response.getPdfPaths() == null || response.getPdfPaths().isEmpty()) {
+                throw new CustomException(ErrorCode.AI_PROCESSING_FAILED);
+            }
+            String aiServerPath = response.getPdfPaths().get(0);
+
+            // 4. 처리 완료
+            updateContentSuccess(contentId, aiServerPath);
 
             log.info("[Async] 업로드 파일(contentId: {})에 대한 AI 작업 완료!", contentId);
 
         } catch (Exception e) {
             log.error("[ERROR] 업로드 파일(contentId: {})에 대한 AI 작업 실패", contentId, e);
-
-            updateContentStatus(contentId, ContentStatus.FAILED);
+            updateContentFailed(contentId);
         }
     }
 
-    // AI 처리 상태 변경 메서드
+    // AI 처리 성공 시 호출
     @Transactional(propagation = Propagation.REQUIRES_NEW)
-    public void updateContentStatus(Long contentId, ContentStatus status) {
+    public void updateContentSuccess(Long contentId, String aiServerPath) {
         Content content = contentRepository.findById(contentId)
                 .orElseThrow(() -> new CustomException(ErrorCode.CONTENT_NOT_FOUND));
 
-        content.changeStatus(status);
-        contentRepository.save(content); // 상태 변경(COMPLETED 또는 FAILED) 저장
+        content.changeStatus(ContentStatus.COMPLETED); // 상태 변경
+        content.setAiServerPath(aiServerPath); // AI 경로 저장
+
+        contentRepository.save(content);
+    }
+
+    // AI 처리 실패 시 호출
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public void updateContentFailed(Long contentId) {
+        Content content = contentRepository.findById(contentId)
+                .orElseThrow(() -> new CustomException(ErrorCode.CONTENT_NOT_FOUND));
+
+        content.changeStatus(ContentStatus.FAILED); // 상태 변경
+
+        contentRepository.save(content);
     }
 
     // AI 처리 상태 조회 메서드 -> 프론트가 이 API를 주기적으로 호출
