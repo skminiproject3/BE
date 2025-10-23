@@ -1,7 +1,6 @@
 package com.rookies4.MiniProject3.controller;
 
-import com.rookies4.MiniProject3.dto.SummaryChapterRequestDto;
-import com.rookies4.MiniProject3.dto.SummaryResponseDto;
+import com.rookies4.MiniProject3.dto.SummaryDto;
 import com.rookies4.MiniProject3.service.SummaryService;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
@@ -22,29 +21,29 @@ public class SummaryController {
 
     // 전체 요약 생성
     @PostMapping("/full")
-    public ResponseEntity<SummaryResponseDto> generateFullSummary(
+    public ResponseEntity<SummaryDto.Response> generateFullSummary(
             @PathVariable Long contentId
     ) {
-        SummaryResponseDto response = summaryService.createFullSummary(contentId);
+        SummaryDto.Response response = summaryService.createFullSummary(contentId);
         return ResponseEntity.ok(response);
     }
 
     // 단원별 요약 생성
     @PostMapping("/chapter")
-    public ResponseEntity<SummaryResponseDto> generateChapterSummary(
+    public ResponseEntity<SummaryDto.Response> generateChapterSummary(
             @PathVariable Long contentId,
-            @RequestBody SummaryChapterRequestDto requestDto
+            @RequestBody SummaryDto.ChapterRequest requestDto
     ) {
-        SummaryResponseDto response = summaryService.createChapterSummary(contentId, requestDto);
+        SummaryDto.Response response = summaryService.createChapterSummary(contentId, requestDto);
         return ResponseEntity.ok(response);
     }
 
     // 캐시된 요약 목록 조회
     @GetMapping
-    public ResponseEntity<List<SummaryResponseDto>> getCachedSummaries(
+    public ResponseEntity<List<SummaryDto.Response>> getCachedSummaries(
             @PathVariable Long contentId
     ) {
-        List<SummaryResponseDto> responseList = summaryService.getCachedSummaries(contentId);
+        List<SummaryDto.Response> responseList = summaryService.getCachedSummaries(contentId);
         return ResponseEntity.ok(responseList);
     }
 }

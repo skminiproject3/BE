@@ -2,8 +2,7 @@ package com.rookies4.MiniProject3.service;
 
 import com.rookies4.MiniProject3.domain.entity.Content;
 import com.rookies4.MiniProject3.domain.entity.Summary;
-import com.rookies4.MiniProject3.dto.SummaryChapterRequestDto;
-import com.rookies4.MiniProject3.dto.SummaryResponseDto;
+import com.rookies4.MiniProject3.dto.SummaryDto;
 import com.rookies4.MiniProject3.dto.ai.AiChapterSummaryResponse;
 import com.rookies4.MiniProject3.dto.ai.AiFullSummaryResponse;
 import com.rookies4.MiniProject3.dto.ai.AiSummaryItem;
@@ -30,7 +29,7 @@ public class SummaryService {
 
     // 전체 요약 생성
     @Transactional
-    public SummaryResponseDto createFullSummary(Long contentId) {
+    public SummaryDto.Response createFullSummary(Long contentId) {
         // 콘텐츠 조회 및 AI 처리 상태 확인
         Content content = findContentOrThrow(contentId);
         validateAiProcessingCompleted(content);
@@ -52,12 +51,12 @@ public class SummaryService {
 
         summaryRepository.save(summary);
 
-        return new SummaryResponseDto(summary);
+        return new SummaryDto.Response(summary);
     }
 
     // 단원별 요약 생성
     @Transactional
-    public SummaryResponseDto createChapterSummary(Long contentId, SummaryChapterRequestDto requestDto) {
+    public SummaryDto.Response createChapterSummary(Long contentId, SummaryDto.ChapterRequest requestDto) {
         // 1. 콘텐츠 조회 및 AI 처리 상태 확인
         Content content = findContentOrThrow(contentId);
         validateAiProcessingCompleted(content); // 409 Conflict 처리
@@ -81,23 +80,21 @@ public class SummaryService {
 
         summaryRepository.save(summary);
 
-        return new SummaryResponseDto(summary);
+        return new SummaryDto.Response(summary);
     }
 
-    /**
-     * 6.3. 캐시된 요약 목록 조회 (GET /contents/{contentId}/summaries)
-     */
+    // 캐시된 요약 목록 조회
     @Transactional(readOnly = true)
-    public List<SummaryResponseDto> getCachedSummaries(Long contentId) {
+    public List<SummaryDto.Response> getCachedSummaries(Long contentId) {
         // 1. contentId 존재 여부 확인 (optional)
-        // contentRepository.findById(contentId)
-        //         .orElseThrow(() -> new CustomException(ErrorCode.CONTENT_NOT_FOUND));
+        contentRepository.findById(contentId)
+                 .orElseThrow(() -> new CustomException(ErrorCode.CONTENT_NOT_FOUND));
 
-        // 2. DB에서 캐시된 요약본 조회
+        // 2. DB 에서 캐시된 요약본 조회
         List<Summary> summaries = summaryRepository.findByContentId(contentId);
 
         return summaries.stream()
-                .map(SummaryResponseDto::new)
+                .map(SummaryDto.Response::new)
                 .collect(Collectors.toList());
     }
 
