@@ -25,8 +25,8 @@ import java.util.stream.Collectors;
 public class PythonServerClient {
 
     private final WebClient webClient;
-    private final Dotenv dotenv = Dotenv.load(); // ✅ .env 파일 로드
-    private final String openaiApiKey = dotenv.get("OPENAI_API_KEY"); // ✅ API 키 안전 로드
+    private final Dotenv dotenv = Dotenv.load();
+    private final String openaiApiKey = dotenv.get("OPENAI_API_KEY");
 
     // ======================================
     // PDF 업로드 요청
@@ -70,7 +70,7 @@ public class PythonServerClient {
     // ======================================
     public List<SummaryDto.Response> summarizeChapters(List<String> pdfPaths, String chapterRequest) {
         try {
-            Map<String, Object> body = new HashMap<>();
+            Map<String, Object> body = new LinkedHashMap<>();
             body.put("pdf_paths", pdfPaths);
             if (chapterRequest != null && !chapterRequest.isEmpty()) {
                 body.put("chapter_request", chapterRequest);
@@ -87,11 +87,11 @@ public class PythonServerClient {
             if (response != null && response.getSummaries() != null) {
                 return response.getSummaries();
             } else {
-                log.error("Python 서버 단원별 요약 응답이 올바르지 않습니다.");
+                log.error("❌ Python 서버 단원별 요약 응답이 올바르지 않습니다.");
                 return Collections.emptyList();
             }
         } catch (Exception e) {
-            log.error("단원별 요약 요청 실패", e);
+            log.error("🚨 단원별 요약 요청 실패", e);
             return Collections.emptyList();
         }
     }
@@ -101,7 +101,9 @@ public class PythonServerClient {
     // ======================================
     public String answerQuestion(String question, List<String> pdfPaths) {
         try {
-            Map<String, Object> body = Map.of("question", question, "pdf_paths", pdfPaths);
+            Map<String, Object> body = new LinkedHashMap<>();
+            body.put("question", question);
+            body.put("pdf_paths", pdfPaths);
 
             Map<String, Object> response = webClient.post()
                     .uri("/question/")
@@ -114,119 +116,17 @@ public class PythonServerClient {
             if (response != null && response.containsKey("answer")) {
                 return (String) response.get("answer");
             } else {
-                log.error("Python 서버 질문 응답이 올바르지 않습니다.");
+                log.error("❌ Python 서버 질문 응답이 올바르지 않습니다.");
                 return "질문 실패";
             }
         } catch (Exception e) {
-            log.error("질문 요청 실패", e);
+            log.error("🚨 질문 요청 실패", e);
             return "질문 실패";
         }
     }
 
     // ======================================
-    // 연습문제 생성 요청 (정답/해설 자동 보완)
-    // ======================================
-    public List<QuizResponseDto> generateQuiz(List<String> pdfPaths, int numQuestions, String difficulty) {
-        try {
-            Map<String, Object> body = new HashMap<>();
-            body.put("pdf_paths", pdfPaths);
-            body.put("num_questions", numQuestions);
-            body.put("difficulty", difficulty);
-
-            Object responseObj = webClient.post()
-                    .uri("/quiz/generate")
-                    .contentType(MediaType.APPLICATION_JSON)
-                    .bodyValue(body)
-                    .retrieve()
-                    .bodyToMono(Object.class)
-                    .block();
-
-            if (responseObj == null) {
-                log.error("Python 서버 응답이 null입니다.");
-                return Collections.emptyList();
-            }
-
-            List<QuizResponseDto> quizzes = new ArrayList<>();
-
-            if (responseObj instanceof List<?>) {
-                quizzes = castToMapList(responseObj).stream()
-                        .map(this::convertToQuizDto)
-                        .collect(Collectors.toList());
-            } else if (responseObj instanceof Map<?, ?> map && map.containsKey("questions")) {
-                Object qObj = map.get("questions");
-                if (qObj instanceof List<?>) {
-                    quizzes = castToMapList(qObj).stream()
-                            .map(this::convertToQuizDto)
-                            .collect(Collectors.toList());
-                }
-            }
-
-            return quizzes.stream()
-                    .map(this::enrichWithLLM)
-                    .collect(Collectors.toList());
-
-        } catch (Exception e) {
-            log.error("🚨 퀴즈 생성 요청 실패", e);
-            return Collections.emptyList();
-        }
-    }
-
-    // ======================================
-    // QuizResponseDto 변환 (보기 제거 포함)
-    // ======================================
-    private QuizResponseDto convertToQuizDto(Map<String, Object> item) {
-        try {
-            String question = "";
-            List<String> options = new ArrayList<>();
-            String correct = "";
-            String explanation = "";
-
-            if (item.containsKey("question"))
-                question = safeToString(item.get("question"));
-            else if (item.containsKey("question_text"))
-                question = safeToString(item.get("question_text"));
-            else if (item.containsKey("quiz_text"))
-                question = safeToString(item.get("quiz_text"));
-
-            // ✅ 보기 제거 로직
-            question = Arrays.stream(question.split("\n"))
-                    .filter(line -> !line.matches("^[a-dA-D]\\).*"))  // 보기 줄 제거
-                    .map(String::trim)
-                    .collect(Collectors.joining(" "))
-                    .replaceAll("---", "")
-                    .trim();
-
-            if (item.containsKey("options"))
-                options = parseOptions(item.get("options"));
-            else if (item.containsKey("question_text")) {
-                String qText = safeToString(item.get("question_text"));
-                options = Arrays.stream(qText.split("\n"))
-                        .filter(l -> l.matches("^[a-dA-D]\\).*"))
-                        .map(String::trim)
-                        .collect(Collectors.toList());
-            }
-
-            correct = safeToString(item.get("correct_answer"));
-            explanation = safeToString(item.get("explanation"));
-
-            if (question.isBlank()) question = "문제 정보 없음";
-            if (options.isEmpty()) options = List.of("보기1", "보기2", "보기3", "보기4");
-
-            return QuizResponseDto.builder()
-                    .question(question)
-                    .options(options)
-                    .correctAnswer(correct.isBlank() ? "정답 정보 없음" : correct)
-                    .explanation(explanation.isBlank() ? "해설 정보 없음" : explanation)
-                    .build();
-
-        } catch (Exception e) {
-            log.error("⚠️ Quiz DTO 변환 실패: {}", item, e);
-            return null;
-        }
-    }
-
-    // ======================================
-    // GPT-4o-mini로 정답/해설 자동 보완
+    // LLM 보완
     // ======================================
     private QuizResponseDto enrichWithLLM(QuizResponseDto quiz) {
         try {
@@ -281,8 +181,103 @@ public class PythonServerClient {
     }
 
     // ======================================
-    // 유틸 메서드
+    // 퀴즈 생성
     // ======================================
+    public List<QuizResponseDto> generateQuiz(List<String> pdfPaths, int numQuestions, String difficulty) {
+        try {
+            Map<String, Object> body = new LinkedHashMap<>();
+            body.put("pdf_paths", pdfPaths);
+            body.put("num_questions", numQuestions);
+            body.put("difficulty", difficulty);
+
+            Object responseObj = webClient.post()
+                    .uri("/quiz/generate")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .bodyValue(body)
+                    .retrieve()
+                    .bodyToMono(Object.class)
+                    .block();
+
+            if (responseObj == null) {
+                log.error("Python 서버 응답이 null입니다.");
+                return Collections.emptyList();
+            }
+
+            List<QuizResponseDto> quizzes = new ArrayList<>();
+
+            if (responseObj instanceof List<?>) {
+                quizzes = castToMapList(responseObj).stream()
+                        .map(this::convertToQuizDto)
+                        .collect(Collectors.toList());
+            } else if (responseObj instanceof Map<?, ?> map && map.containsKey("questions")) {
+                Object qObj = map.get("questions");
+                if (qObj instanceof List<?>) {
+                    quizzes = castToMapList(qObj).stream()
+                            .map(this::convertToQuizDto)
+                            .collect(Collectors.toList());
+                }
+            }
+
+            return quizzes.stream()
+                    .map(this::enrichWithLLM)
+                    .collect(Collectors.toList());
+
+        } catch (Exception e) {
+            log.error("🚨 퀴즈 생성 요청 실패", e);
+            return Collections.emptyList();
+        }
+    }
+
+    private QuizResponseDto convertToQuizDto(Map<String, Object> item) {
+        try {
+            String question = "";
+            List<String> options = new ArrayList<>();
+            String correct = "";
+            String explanation = "";
+
+            if (item.containsKey("question"))
+                question = safeToString(item.get("question"));
+            else if (item.containsKey("question_text"))
+                question = safeToString(item.get("question_text"));
+            else if (item.containsKey("quiz_text"))
+                question = safeToString(item.get("quiz_text"));
+
+            question = Arrays.stream(question.split("\n"))
+                    .filter(line -> !line.matches("^[a-dA-D]\\).*"))
+                    .map(String::trim)
+                    .collect(Collectors.joining(" "))
+                    .replaceAll("---", "")
+                    .trim();
+
+            if (item.containsKey("options"))
+                options = parseOptions(item.get("options"));
+            else if (item.containsKey("question_text")) {
+                String qText = safeToString(item.get("question_text"));
+                options = Arrays.stream(qText.split("\n"))
+                        .filter(l -> l.matches("^[a-dA-D]\\).*"))
+                        .map(String::trim)
+                        .collect(Collectors.toList());
+            }
+
+            correct = safeToString(item.get("correct_answer"));
+            explanation = safeToString(item.get("explanation"));
+
+            if (question.isBlank()) question = "문제 정보 없음";
+            if (options.isEmpty()) options = List.of("보기1", "보기2", "보기3", "보기4");
+
+            return QuizResponseDto.builder()
+                    .question(question)
+                    .options(options)
+                    .correctAnswer(correct.isBlank() ? "정답 정보 없음" : correct)
+                    .explanation(explanation.isBlank() ? "해설 정보 없음" : explanation)
+                    .build();
+
+        } catch (Exception e) {
+            log.error("⚠️ Quiz DTO 변환 실패: {}", item, e);
+            return null;
+        }
+    }
+
     private List<String> parseOptions(Object obj) {
         try {
             if (obj instanceof List<?>) {
@@ -310,11 +305,31 @@ public class PythonServerClient {
     }
 
     // ======================================
-    // 퀴즈 채점 요청
+    // ✅ FastAPI 호환 채점 요청 (수정 완료)
     // ======================================
     public Map<String, Object> gradeQuiz(List<String> pdfPaths, List<QuizGradeRequest.Answer> answers) {
         try {
-            Map<String, Object> body = Map.of("pdf_paths", pdfPaths, "answers", answers);
+            List<String> normalizedPaths = pdfPaths.stream()
+                    .filter(Objects::nonNull)
+                    .map(p -> p.replace("\\", "/"))
+                    .collect(Collectors.toList());
+
+            // ✅ FastAPI는 "question" 키를 기대함 (기존 "question_text" 수정)
+            List<Map<String, Object>> validAnswers = answers.stream()
+                    .filter(a -> a.getQuestion() != null && a.getUser_answer() != null)
+                    .map(a -> {
+                        Map<String, Object> map = new LinkedHashMap<>();
+                        map.put("question", a.getQuestion());
+                        map.put("user_answer", a.getUser_answer());
+                        return map;
+                    })
+                    .collect(Collectors.toList());
+
+            Map<String, Object> body = new LinkedHashMap<>();
+            body.put("pdf_paths", normalizedPaths);
+            body.put("answers", validAnswers);
+
+            log.info("📤 [FastAPI 채점 요청 바디] {}", new ObjectMapper().writeValueAsString(body));
 
             Map<String, Object> response = webClient.post()
                     .uri("/quiz/grade")
@@ -324,12 +339,41 @@ public class PythonServerClient {
                     .bodyToMono(Map.class)
                     .block();
 
-            if (response == null) {
+            if (response == null || response.isEmpty()) {
                 return Map.of("message", "채점 실패: 응답 없음");
             }
-            return response;
+
+            log.info("✅ [FastAPI 채점 결과 수신] {}", new ObjectMapper().writeValueAsString(response));
+
+            List<Map<String, Object>> results = new ArrayList<>();
+            int correctCount = 0;
+            int totalScore = 0;
+
+            Object rawResults = response.get("results");
+            if (rawResults instanceof List<?>) {
+                for (Object obj : (List<?>) rawResults) {
+                    Map<String, Object> r = (Map<String, Object>) obj;
+                    results.add(r);
+                    if (Boolean.TRUE.equals(r.get("is_correct"))) correctCount++;
+                    if (r.get("score") instanceof Number num) totalScore += num.intValue();
+                }
+            }
+
+            int totalQuestions = results.size();
+            int finalScore = response.containsKey("final_total_score")
+                    ? ((Number) response.get("final_total_score")).intValue()
+                    : totalScore;
+
+            Map<String, Object> resultBody = new LinkedHashMap<>();
+            resultBody.put("final_total_score", finalScore);
+            resultBody.put("correct_count", correctCount);
+            resultBody.put("total_questions", totalQuestions);
+            resultBody.put("results", results);
+
+            return resultBody;
+
         } catch (Exception e) {
-            log.error("채점 요청 실패", e);
+            log.error("🚨 채점 요청 중 오류 발생", e);
             return Map.of("message", "채점 중 오류 발생");
         }
     }

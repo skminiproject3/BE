@@ -6,8 +6,11 @@ import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "quiz_attempts")
-@Getter @Setter
-@NoArgsConstructor @AllArgsConstructor @Builder
+@Getter
+@Setter
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
 public class QuizAttempt {
 
     @Id
@@ -30,4 +33,9 @@ public class QuizAttempt {
 
     @Column(name = "created_at", columnDefinition = "TIMESTAMP DEFAULT CURRENT_TIMESTAMP")
     private LocalDateTime createdAt;
+
+    @PrePersist
+    protected void onCreate() {
+        this.createdAt = LocalDateTime.now();
+    }
 }

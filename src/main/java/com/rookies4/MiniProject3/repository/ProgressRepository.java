@@ -8,9 +8,13 @@ import java.util.List;
 import java.util.Optional;
 
 public interface ProgressRepository extends JpaRepository<Progress, Long> {
-    // 사용자와 문서 기준으로 진행 기록 조회
+
+    // ✅ 사용자 + 콘텐츠 기준 진행 기록 조회
     Optional<Progress> findByUserAndContent(User user, Content content);
 
-    // 특정 사용자의 모든 진행 기록 조회
+    // ✅ 특정 사용자 전체 진행 기록 조회
     List<Progress> findByUser(User user);
+
+    // ✅ contentId 기준으로 진행 기록 조회 (quiz_attempts 저장용)
+    Optional<Progress> findByContentId(Long contentId);
 }

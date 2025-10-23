@@ -1,10 +1,12 @@
 package com.rookies4.MiniProject3.service;
 
 import com.rookies4.MiniProject3.domain.entity.Content;
+import com.rookies4.MiniProject3.domain.entity.Progress;
 import com.rookies4.MiniProject3.domain.entity.User;
 import com.rookies4.MiniProject3.domain.enums.ContentStatus;
 import com.rookies4.MiniProject3.dto.ContentDto;
 import com.rookies4.MiniProject3.repository.ContentRepository;
+import com.rookies4.MiniProject3.repository.ProgressRepository;
 import com.rookies4.MiniProject3.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -21,7 +23,8 @@ import java.util.Optional;
 public class ContentService {
 
     private final ContentRepository contentRepository;
-    private final UserRepository userRepository; // ✅ userId 기반 User 객체 조회용 추가
+    private final UserRepository userRepository;
+    private final ProgressRepository progressRepository; // ✅ Progress 조회용 추가
 
     // ======================================
     // 콘텐츠 업로드 및 DB 저장
@@ -44,11 +47,10 @@ public class ContentService {
 
             Content saved = contentRepository.save(content);
 
-            // ✅ builder 대신 생성자 방식 사용 (DTO는 @Builder 없음)
             return new ContentDto.UploadResponse(
                     saved.getId(),
                     saved.getTitle(),
-                    saved.getStatus().name(), // Enum → String
+                    saved.getStatus().name(),
                     null // vectorId 없음
             );
 
@@ -113,6 +115,19 @@ public class ContentService {
             contentRepository.save(content);
         } else {
             log.warn("⚠️ updateStatus: 콘텐츠 ID {} 없음", contentId);
+        }
+    }
+
+    // ======================================
+    // ✅ Progress 조회 메서드 (quiz_attempts 저장용)
+    // ======================================
+    public Progress findProgressByContentId(Long contentId) {
+        try {
+            return progressRepository.findByContentId(contentId)
+                    .orElse(null);
+        } catch (Exception e) {
+            log.error("⚠️ Progress 조회 실패 (contentId={}): {}", contentId, e.getMessage());
+            return null;
         }
     }
 }
