@@ -2,12 +2,11 @@ package com.rookies4.MiniProject3.controller;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.rookies4.MiniProject3.domain.entity.Content;
-import com.rookies4.MiniProject3.domain.entity.Progress;
-import com.rookies4.MiniProject3.domain.entity.Quiz;
-import com.rookies4.MiniProject3.dto.*;
+import com.rookies4.MiniProject3.dto.ContentDto;
+import com.rookies4.MiniProject3.dto.SummaryChapterRequest;
+import com.rookies4.MiniProject3.dto.SummaryDto.Response;
 import com.rookies4.MiniProject3.service.ContentService;
 import com.rookies4.MiniProject3.service.PythonServerClient;
-import com.rookies4.MiniProject3.service.QuizService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
@@ -26,44 +25,134 @@ public class ContentController {
 
     private final ContentService contentService;
     private final PythonServerClient pythonClient;
-    private final QuizService quizService;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
-    // =====================================
-    // 🧮 퀴즈 채점 요청 + quiz_attempts 저장
-    // =====================================
-    @PostMapping("/{contentId}/quiz/grade")
-    public ResponseEntity<Map<String, Object>> gradeQuiz(
-            @PathVariable Long contentId,
-            @RequestBody QuizGradeRequest request) {
+    // ======================================
+    // 📂 문서 업로드 및 DB 저장
+    // ======================================
+    @PostMapping("/upload")
+    public ResponseEntity<List<ContentDto.UploadResponse>> uploadContents(
+            @RequestParam("files") List<MultipartFile> files,
+            @RequestParam("title") String title) {
+
+        List<File> savedFiles = new ArrayList<>();
+        List<ContentDto.UploadResponse> responses = new ArrayList<>();
+        String saveDir = "C:/uploads/";
+        new File(saveDir).mkdirs();
 
         try {
-            Content content = contentService.findById(contentId);
-            List<Quiz> quizzes = quizService.getQuizzesByContent(content);
+            for (MultipartFile file : files) {
+                String uuidFileName = UUID.randomUUID() + "_" + file.getOriginalFilename();
+                File savedFile = new File(saveDir + uuidFileName);
+                file.transferTo(savedFile);
+                savedFiles.add(savedFile);
 
-            if (quizzes.isEmpty()) {
-                return ResponseEntity.status(HttpStatus.NOT_FOUND)
-                        .body(Map.of("message", "❌ 해당 콘텐츠의 퀴즈가 없습니다."));
+                ContentDto.UploadResponse response = contentService.saveToDb(
+                        savedFile.getAbsolutePath(),
+                        file.getOriginalFilename(),
+                        title,
+                        1L // ⚠️ 임시 userId=1
+                );
+                responses.add(response);
             }
 
-            // ✅ 로컬 채점 수행
-            Map<String, Object> result = quizService.gradeQuizLocally(quizzes, request.getAnswers());
+            // ✅ Python 서버 업로드 요청
+            List<String> pythonUploadResult = pythonClient.uploadPDFs(savedFiles);
+            log.info("📤 Python 서버 업로드 완료: {}", pythonUploadResult);
 
-            // ✅ Progress 찾기 (현재는 임시로 첫 번째 progress 사용)
-            Progress progress = contentService.findProgressByContentId(contentId);
-            if (progress != null) {
-                quizService.saveQuizAttempt(progress, result);
-                log.info("✅ quiz_attempts 저장 완료 (progress_id={})", progress.getId());
-            } else {
-                log.warn("⚠️ Progress 정보 없음 → quiz_attempts 저장 생략");
-            }
-
-            return ResponseEntity.ok(result);
+            return ResponseEntity.status(HttpStatus.ACCEPTED).body(responses);
 
         } catch (Exception e) {
-            log.error("🚨 로컬 채점 중 오류", e);
+            log.error("🚨 파일 업로드 실패", e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(Map.of("message", "채점 중 오류 발생"));
+                    .body(Collections.emptyList());
+        }
+    }
+
+    // ======================================
+    // 📋 콘텐츠 상태 조회
+    // ======================================
+    @GetMapping("/{contentId}/status")
+    public ResponseEntity<ContentDto.StatusResponse> getContentStatus(@PathVariable Long contentId) {
+        try {
+            ContentDto.StatusResponse response = contentService.getContentStatus(contentId);
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            log.error("🚨 콘텐츠 상태 조회 실패", e);
+            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .body(new ContentDto.StatusResponse("NOT_FOUND"));
+        }
+    }
+
+    // ======================================
+    // 📘 전체 요약 요청
+    // ======================================
+    @PostMapping("/{contentId}/summarize")
+    public ResponseEntity<String> summarizeContent(@PathVariable Long contentId) {
+        try {
+            List<String> pdfPaths = contentService.getPdfPaths(contentId);
+            if (pdfPaths.isEmpty()) {
+                return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                        .body("❌ PDF 경로를 찾을 수 없습니다.");
+            }
+
+            String summary = pythonClient.summarize(pdfPaths);
+            return ResponseEntity.ok(summary);
+
+        } catch (Exception e) {
+            log.error("🚨 요약 요청 실패", e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body("요약 중 오류 발생");
+        }
+    }
+
+    // ======================================
+    // 📚 단원별 요약 요청
+    // ======================================
+    @PostMapping("/{contentId}/summaries")
+    public ResponseEntity<List<Response>> getSummaries(
+            @PathVariable Long contentId,
+            @RequestBody SummaryChapterRequest request) {
+
+        try {
+            List<String> pdfPaths = contentService.getPdfPaths(contentId);
+            if (pdfPaths.isEmpty()) {
+                return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                        .body(Collections.emptyList());
+            }
+
+            List<Response> summaries = pythonClient.summarizeChapters(pdfPaths, request.getChapterRequest());
+            return ResponseEntity.ok(summaries);
+
+        } catch (Exception e) {
+            log.error("🚨 단원별 요약 요청 실패", e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Collections.emptyList());
+        }
+    }
+
+    // ======================================
+    // 💬 질문 응답 요청
+    // ======================================
+    @PostMapping("/{contentId}/ask")
+    public ResponseEntity<String> askQuestion(
+            @PathVariable Long contentId,
+            @RequestParam("question") String question) {
+
+        try {
+            List<String> pdfPaths = contentService.getPdfPaths(contentId);
+            if (pdfPaths.isEmpty()) {
+                return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                        .body("❌ PDF 경로를 찾을 수 없습니다.");
+            }
+
+            String answer = pythonClient.answerQuestion(question, pdfPaths);
+            return ResponseEntity.ok(answer);
+
+        } catch (Exception e) {
+            log.error("🚨 질문 처리 실패", e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body("질문 처리 중 오류 발생");
         }
     }
 }

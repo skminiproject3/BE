@@ -24,7 +24,7 @@ public class ContentService {
 
     private final ContentRepository contentRepository;
     private final UserRepository userRepository;
-    private final ProgressRepository progressRepository; // ✅ Progress 조회용 추가
+    private final ProgressRepository progressRepository;
 
     // ======================================
     // 콘텐츠 업로드 및 DB 저장
@@ -32,11 +32,9 @@ public class ContentService {
     @Transactional
     public ContentDto.UploadResponse saveToDb(String filePath, String fileName, String title, Long userId) {
         try {
-            // ✅ userId → 실제 User 객체 조회
             User user = userRepository.findById(userId)
                     .orElseThrow(() -> new RuntimeException("❌ User not found with id: " + userId));
 
-            // ✅ Enum 상태값 사용
             Content content = Content.builder()
                     .user(user)
                     .filePath(filePath)
@@ -47,11 +45,13 @@ public class ContentService {
 
             Content saved = contentRepository.save(content);
 
+            log.info("✅ 콘텐츠 저장 완료: id={}, title={}, user={}", saved.getId(), saved.getTitle(), user.getUsername());
+
             return new ContentDto.UploadResponse(
                     saved.getId(),
                     saved.getTitle(),
                     saved.getStatus().name(),
-                    null // vectorId 없음
+                    null
             );
 
         } catch (Exception e) {
@@ -64,13 +64,9 @@ public class ContentService {
     // 콘텐츠 상태 조회
     // ======================================
     public ContentDto.StatusResponse getContentStatus(Long contentId) {
-        Optional<Content> optional = contentRepository.findById(contentId);
+        Content content = contentRepository.findById(contentId)
+                .orElseThrow(() -> new RuntimeException("❌ 콘텐츠를 찾을 수 없습니다. id=" + contentId));
 
-        if (optional.isEmpty()) {
-            throw new RuntimeException("❌ 콘텐츠를 찾을 수 없습니다. id=" + contentId);
-        }
-
-        Content content = optional.get();
         return new ContentDto.StatusResponse(content.getStatus().name());
     }
 
@@ -89,7 +85,7 @@ public class ContentService {
     }
 
     // ======================================
-    // 단일 콘텐츠 조회 (QuizService와 연계)
+    // 단일 콘텐츠 조회
     // ======================================
     public Content findById(Long id) {
         return contentRepository.findById(id)
@@ -97,7 +93,7 @@ public class ContentService {
     }
 
     // ======================================
-    // 콘텐츠 전체 목록 조회 (관리용)
+    // 콘텐츠 전체 목록 조회
     // ======================================
     public List<Content> getAllContents() {
         return contentRepository.findAll();
@@ -119,14 +115,57 @@ public class ContentService {
     }
 
     // ======================================
-    // ✅ Progress 조회 메서드 (quiz_attempts 저장용)
+    // ✅ Progress 조회 + 없으면 자동 생성
     // ======================================
+    @Transactional
     public Progress findProgressByContentId(Long contentId) {
         try {
-            return progressRepository.findByContentId(contentId)
-                    .orElse(null);
+            Optional<Progress> existing = progressRepository.findByContent_Id(contentId);
+            if (existing.isPresent()) {
+                log.info("✅ 기존 Progress 조회 완료 (id={})", existing.get().getId());
+                return existing.get();
+            }
+
+            // 없을 경우 새로 생성
+            log.warn("⚠️ Progress 없음 → 새로 생성 시도 (contentId={})", contentId);
+            return createProgressForUserAndContent(contentId);
+
         } catch (Exception e) {
-            log.error("⚠️ Progress 조회 실패 (contentId={}): {}", contentId, e.getMessage());
+            log.error("🚨 Progress 조회 실패 (contentId={}): {}", contentId, e.getMessage());
+            return null;
+        }
+    }
+
+    // ======================================
+    // ✅ Progress 자동 생성 (quiz_attempts 연동용)
+    // ======================================
+    @Transactional
+    public Progress createProgressForUserAndContent(Long contentId) {
+        try {
+            Content content = contentRepository.findById(contentId)
+                    .orElseThrow(() -> new RuntimeException("❌ 콘텐츠를 찾을 수 없습니다. id=" + contentId));
+
+            User user = content.getUser();
+            if (user == null) {
+                log.error("❌ Progress 생성 실패: 콘텐츠에 연결된 User가 없습니다. (contentId={})", contentId);
+                return null;
+            }
+
+            Progress progress = Progress.builder()
+                    .user(user)
+                    .content(content)
+                    .completedChapters(0)
+                    .averageScore(0f)
+                    .build();
+
+            Progress saved = progressRepository.save(progress);
+            log.info("🆕 Progress 새로 생성 완료: id={}, user={}, contentId={}",
+                    saved.getId(), user.getUsername(), contentId);
+
+            return saved;
+
+        } catch (Exception e) {
+            log.error("🚨 Progress 생성 실패 (contentId={}): {}", contentId, e.getMessage());
             return null;
         }
     }

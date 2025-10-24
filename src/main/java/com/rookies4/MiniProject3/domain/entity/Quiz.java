@@ -1,22 +1,24 @@
 package com.rookies4.MiniProject3.domain.entity;
 
-import com.rookies4.MiniProject3.domain.enums.Difficulty;
 import jakarta.persistence.*;
 import lombok.*;
 
-import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.List;
-
 @Entity
 @Table(name = "quizzes")
-@Getter @Setter
-@NoArgsConstructor @AllArgsConstructor @Builder
+@Getter
+@Setter
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
 public class Quiz {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+    private Long id; // DB 고유 PK
+
+    // ✅ 콘텐츠별 퀴즈 순서 ID (1, 2, 3...)
+    @Column(name = "quiz_id")
+    private Integer quizId;
 
     // FK → contents.id
     @ManyToOne(fetch = FetchType.LAZY)
