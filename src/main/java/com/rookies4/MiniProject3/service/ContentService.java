@@ -33,7 +33,7 @@ public class ContentService {
     private final PythonServerClient pythonServerClient;
 
     // ==========================================================
-    //  파일 업로드 + FastAPI 전송 + 챕터 감지까지만 수행
+    //  파일 업로드 + FastAPI 전송 + 챕터 감지 + vectorPath 저장
     // ==========================================================
     @Transactional
     public ContentDto.UploadResponse uploadFile(MultipartFile file, String title, Long userId) {
@@ -49,7 +49,7 @@ public class ContentService {
         String originalFileName = file.getOriginalFilename();
         String storedFilePath = fileStorageService.store(file);
 
-        // 콘텐츠 엔티티 생성 및 저장
+        // 콘텐츠 생성
         Content content = Content.builder()
                 .user(user)
                 .title(title)
@@ -62,32 +62,47 @@ public class ContentService {
         log.info("📦 Content 생성 완료 | id={} | title={}", content.getId(), title);
 
         try {
-            // FastAPI로 업로드 + 챕터 감지
+            // ✅ FastAPI 호출: PDF 업로드 + 벡터화 + 챕터 감지
             Map<String, Object> fastApiResponse =
                     pythonServerClient.uploadPdfAndVectorize(content.getId(), storedFilePath);
 
             int totalChapters = 0;
-            if (fastApiResponse != null && fastApiResponse.get("total_chapters") != null) {
-                try {
-                    totalChapters = Integer.parseInt(fastApiResponse.get("total_chapters").toString());
-                } catch (Exception e) {
-                    log.warn("⚠️ total_chapters 변환 실패: {}", fastApiResponse.get("total_chapters"));
+            String vectorPath = null;
+
+            if (fastApiResponse != null) {
+                // total_chapters 파싱
+                if (fastApiResponse.get("total_chapters") != null) {
+                    try {
+                        totalChapters = Integer.parseInt(fastApiResponse.get("total_chapters").toString());
+                    } catch (Exception e) {
+                        log.warn("⚠️ total_chapters 변환 실패: {}", fastApiResponse.get("total_chapters"));
+                    }
+                }
+                // vector_path 파싱
+                if (fastApiResponse.get("vector_path") != null) {
+                    vectorPath = fastApiResponse.get("vector_path").toString();
                 }
             }
 
-            // DB에 total_chapters 반영만 수행
+            // ✅ DB 반영
             content.updateTotalChapters(totalChapters);
+            content.setVectorPath(vectorPath);
             content.changeStatus(ContentStatus.COMPLETED);
             contentRepository.saveAndFlush(content);
 
-            log.info("✅ 업로드/분석 완료 | contentId={} | total_chapters={}", content.getId(), totalChapters);
+            log.info("✅ 업로드/분석 완료 | contentId={} | total_chapters={} | vectorPath={}",
+                    content.getId(), totalChapters, vectorPath);
 
-            // 응답 DTO 반환
+            // ✅ Progress 자동 생성
+            createProgressForUserAndContent(content.getId());
+
+            // ✅ DTO 반환
             return new ContentDto.UploadResponse(
                     content.getId(),
                     content.getTitle(),
                     content.getStatus().name(),
-                    totalChapters
+                    totalChapters,
+                    vectorPath
             );
 
         } catch (Exception e) {
@@ -117,7 +132,7 @@ public class ContentService {
     }
 
     // ==========================================================
-    // Vector Path 업데이트
+    // ✅ Vector Path 업데이트 (FastAPI → Spring)
     // ==========================================================
     @Transactional
     public void updateVectorPath(Long contentId, String vectorPath) {
@@ -129,24 +144,25 @@ public class ContentService {
 
         log.info("✅ vectorPath 업데이트 완료 | contentId={} | path={}", contentId, vectorPath);
     }
-    // ======================================
+
+    // ==========================================================
     // 단일 콘텐츠 조회
-    // ======================================
+    // ==========================================================
     public Content findById(Long id) {
         return contentRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("❌ Content not found with id: " + id));
     }
 
-    // ======================================
+    // ==========================================================
     // 콘텐츠 전체 목록 조회
-    // ======================================
+    // ==========================================================
     public List<Content> getAllContents() {
         return contentRepository.findAll();
     }
 
-    // ======================================
+    // ==========================================================
     // 상태 업데이트 (예: 요약 완료 등)
-    // ======================================
+    // ==========================================================
     @Transactional
     public void updateStatus(Long contentId, ContentStatus status) {
         Optional<Content> optional = contentRepository.findById(contentId);
@@ -154,14 +170,15 @@ public class ContentService {
             Content content = optional.get();
             content.setStatus(status);
             contentRepository.save(content);
+            log.info("🔄 콘텐츠 상태 변경 | contentId={} | status={}", contentId, status);
         } else {
             log.warn("⚠️ updateStatus: 콘텐츠 ID {} 없음", contentId);
         }
     }
 
-    // ======================================
+    // ==========================================================
     // ✅ Progress 조회 + 없으면 자동 생성
-    // ======================================
+    // ==========================================================
     @Transactional
     public Progress findProgressByContentId(Long contentId) {
         try {
@@ -180,9 +197,10 @@ public class ContentService {
             return null;
         }
     }
-    // ======================================
+
+    // ==========================================================
     // ✅ Progress 자동 생성 (quiz_attempts 연동용)
-    // ======================================
+    // ==========================================================
     @Transactional
     public Progress createProgressForUserAndContent(Long contentId) {
         try {

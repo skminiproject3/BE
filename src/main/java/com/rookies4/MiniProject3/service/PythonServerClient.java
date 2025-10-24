@@ -25,15 +25,20 @@ public class PythonServerClient {
 
     private final WebClient webClient;
 
-    @Value("${backend.base-url:http://localhost:8080}") // ✅ Spring Boot 서버
+    @Value("${backend.base-url:http://localhost:8080}") // ✅ Spring 서버 주소
     private String backendBaseUrl;
+
+    @Value("${fastapi.base-url:http://localhost:8000}") // ✅ FastAPI 서버 주소
+    private String fastApiBaseUrl;
+
     private String openaiApiKey = "OPENAI_API_KEY";
 
-    // ======================================
-    // FastAPI: PDF 업로드 + 벡터 생성 + 챕터 감지
-    // ======================================
+    // ==========================================================
+    // ✅ FastAPI: PDF 업로드 + 벡터화 + total_chapters 감지
+    // ==========================================================
     public Map<String, Object> uploadPdfAndVectorize(Long contentId, String filePath) {
         Map<String, Object> resultMap = new HashMap<>();
+
         try {
             File file = new File(filePath);
             if (!file.exists()) {
@@ -47,9 +52,9 @@ public class PythonServerClient {
 
             log.info("📤 FastAPI 업로드 요청 시작 | contentId={} | path={}", contentId, filePath);
 
-            // FastAPI로 업로드 요청
+            // FastAPI 업로드 요청
             Map<String, Object> response = webClient.post()
-                    .uri("/upload_pdfs/")
+                    .uri(fastApiBaseUrl + "/upload_pdfs/")
                     .contentType(MediaType.MULTIPART_FORM_DATA)
                     .bodyValue(body)
                     .retrieve()
@@ -64,59 +69,55 @@ public class PythonServerClient {
 
             log.info("✅ FastAPI 응답 수신 | contentId={} | response={}", contentId, response);
 
-            // total_chapters, method, chapter_list 추출
+            // --------------------------
+            // total_chapters, vector_path 추출
+            // --------------------------
             Object totalChaptersObj = response.get("total_chapters");
-            Object method = response.get("method");
-            Object chapterList = response.get("chapter_list");
+            int totalChapters = (totalChaptersObj instanceof Number)
+                    ? ((Number) totalChaptersObj).intValue()
+                    : 0;
 
-            int totalChapters = 0;
-            if (totalChaptersObj instanceof Number) {
-                totalChapters = ((Number) totalChaptersObj).intValue();
-            }
-
-            // 벡터 경로 추출 (옵션)
             String vectorPath;
             if (response.containsKey("vector_path")) {
-                vectorPath = (String) response.get("vector_path");
+                vectorPath = String.valueOf(response.get("vector_path"));
             } else if (response.containsKey("created_vectors_for")) {
                 List<String> paths = (List<String>) response.get("created_vectors_for");
-                if (paths != null && !paths.isEmpty()) {
-                    vectorPath = paths.get(0);
-                } else {
+                if (paths != null && !paths.isEmpty()) vectorPath = paths.get(0);
+                else {
                     vectorPath = null;
                 }
             } else {
                 vectorPath = null;
             }
 
-            // DB 업데이트 (vectorPath)
+            // ✅ Spring 백엔드에 vectorPath 저장
             if (vectorPath != null) {
-                WebClient.create(backendBaseUrl)
-                        .patch()
-                        .uri(uriBuilder -> uriBuilder
-                                .path("/api/contents/{id}/vector-path")
-                                .queryParam("vectorPath", vectorPath)
-                                .build(contentId))
-                        .retrieve()
-                        .bodyToMono(String.class)
-                        .block();
+                try {
+                    WebClient.create(backendBaseUrl)
+                            .patch()
+                            .uri(uriBuilder -> uriBuilder
+                                    .path("/api/contents/{id}/vector-path")
+                                    .queryParam("vectorPath", vectorPath)
+                                    .build(contentId))
+                            .retrieve()
+                            .bodyToMono(String.class)
+                            .block();
 
-                log.info("✅ 백엔드 vectorPath 업데이트 완료 | {}", vectorPath);
+                    log.info("✅ 백엔드 vectorPath 업데이트 완료 | vectorPath={}", vectorPath);
+                } catch (Exception e) {
+                    log.error("⚠️ 백엔드 vectorPath 업데이트 실패: {}", e.getMessage());
+                }
             }
 
-            // 결과 맵 생성
+            // 결과 반환
             resultMap.put("total_chapters", totalChapters);
-            resultMap.put("method", method);
-            resultMap.put("chapter_list", chapterList);
             resultMap.put("vector_path", vectorPath);
-
-            log.info("📦 최종 업로드 결과 | total_chapters={} | method={} | vector={}",
-                    totalChapters, method, vectorPath);
+            log.info("📦 업로드 완료 | total_chapters={} | vector_path={}", totalChapters, vectorPath);
 
             return resultMap;
 
         } catch (Exception e) {
-            log.error("❌ FastAPI 업로드 및 벡터화 요청 실패 | {}", e.getMessage(), e);
+            log.error("🚨 FastAPI 업로드 및 벡터화 요청 실패", e);
             resultMap.put("error", e.getMessage());
             return resultMap;
         }

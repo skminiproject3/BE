@@ -19,6 +19,7 @@ public class ContentDto {
         private String title;       // 파일 제목
         private String status;      // 상태 (PROCESSING, COMPLETED, FAILED)
         private Integer totalChapters; // 감지된 총 챕터 수 (nullable 가능)
+        private String vectorPath;
     }
 
     // ============================================
