@@ -181,9 +181,9 @@ public class PythonServerClient {
     }
 
     // ======================================
-    // 퀴즈 생성
+    // ✅ 퀴즈 생성 (FastAPI 경로 수정 완료)
     // ======================================
-    public List<QuizResponseDto> generateQuiz(List<String> pdfPaths, int numQuestions, String difficulty) {
+    public List<QuizResponseDto> generateQuiz(Long contentId, List<String> pdfPaths, int numQuestions, String difficulty) {
         try {
             Map<String, Object> body = new LinkedHashMap<>();
             body.put("pdf_paths", pdfPaths);
@@ -191,7 +191,7 @@ public class PythonServerClient {
             body.put("difficulty", difficulty);
 
             Object responseObj = webClient.post()
-                    .uri("/quiz/generate")
+                    .uri("/api/contents/{contentId}/quiz/generate", contentId)  // ✅ FastAPI 경로 일치
                     .contentType(MediaType.APPLICATION_JSON)
                     .bodyValue(body)
                     .retrieve()
@@ -305,7 +305,7 @@ public class PythonServerClient {
     }
 
     // ======================================
-    // ✅ FastAPI 호환 채점 요청 (수정 완료)
+    // ✅ FastAPI 호환 채점 요청
     // ======================================
     public Map<String, Object> gradeQuiz(List<String> pdfPaths, List<QuizGradeRequest.Answer> answers) {
         try {
@@ -314,7 +314,6 @@ public class PythonServerClient {
                     .map(p -> p.replace("\\", "/"))
                     .collect(Collectors.toList());
 
-            // ✅ FastAPI는 "question" 키를 기대함 (기존 "question_text" 수정)
             List<Map<String, Object>> validAnswers = answers.stream()
                     .filter(a -> a.getQuestion() != null && a.getUser_answer() != null)
                     .map(a -> {

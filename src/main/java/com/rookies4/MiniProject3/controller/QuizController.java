@@ -47,7 +47,9 @@ public class QuizController {
                         .body(Map.of("message", "❌ PDF 경로가 존재하지 않습니다."));
             }
 
+            // ✅ 수정된 부분: contentId 추가
             List<QuizResponseDto> generated = pythonClient.generateQuiz(
+                    contentId,
                     pdfPaths,
                     request.getNumQuestions(),
                     request.getDifficulty()
@@ -61,10 +63,16 @@ public class QuizController {
             List<Map<String, Object>> savedQuizList = new ArrayList<>();
             for (QuizResponseDto dto : generated) {
                 String optionsJson = objectMapper.writeValueAsString(dto.getOptions());
-                Quiz savedQuiz = quizService.saveQuiz(content, dto.getQuestion(), dto.getCorrectAnswer(), optionsJson, dto.getExplanation());
+                Quiz savedQuiz = quizService.saveQuiz(
+                        content,
+                        dto.getQuestion(),
+                        dto.getCorrectAnswer(),
+                        optionsJson,
+                        dto.getExplanation()
+                );
 
                 Map<String, Object> quizData = new LinkedHashMap<>();
-                quizData.put("quiz_id", savedQuiz.getQuizId()); // ✅ quiz_id 추가
+                quizData.put("quiz_id", savedQuiz.getQuizId());
                 quizData.put("question", dto.getQuestion());
                 quizData.put("options", dto.getOptions());
                 quizData.put("correctAnswer", dto.getCorrectAnswer());
@@ -82,7 +90,10 @@ public class QuizController {
         } catch (Exception e) {
             log.error("🚨 퀴즈 생성 중 오류 발생", e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(Map.of("errorCode", "INTERNAL_SERVER_ERROR", "message", "[ERROR] 서버 내부에 오류가 발생했습니다."));
+                    .body(Map.of(
+                            "errorCode", "INTERNAL_SERVER_ERROR",
+                            "message", "[ERROR] 서버 내부에 오류가 발생했습니다."
+                    ));
         }
     }
 
