@@ -75,35 +75,58 @@ public class QuizService {
     }
 
     /**
-     * ✅ quiz_id 기반 로컬 채점 (question 없어도 동작)
+     * ✅ 개선된 로컬 채점 로직
+     * - 매번 요청 시 제출된 문제만 기준으로 점수 계산
+     * - total_questions = 제출된 문제 수
+     * - 각 문제당 점수 = 100 / 제출한 문제 수
      */
     public Map<String, Object> gradeQuizLocally(List<Quiz> quizzes, List<QuizGradeRequest.Answer> answers) {
         List<Map<String, Object>> results = new ArrayList<>();
         int correctCount = 0;
         int totalScore = 0;
 
+        // ✅ 이번 요청에서 실제로 제출된 문제 수 기준
+        int totalAnswered = answers.size();
+
+        // ✅ 제출된 문제들의 quiz_id만 추출
+        List<Integer> answeredIds = new ArrayList<>();
+        for (QuizGradeRequest.Answer a : answers) {
+            try {
+                if (a.getQuiz_id() != null) {
+                    answeredIds.add(Integer.parseInt(a.getQuiz_id().toString()));
+                }
+            } catch (Exception ignored) {}
+        }
+
+        // ✅ 제출된 문제만 필터링 (DB 전체 퀴즈 X)
+        List<Quiz> targetQuizzes = quizzes;
+        if (!answeredIds.isEmpty()) {
+            targetQuizzes = quizzes.stream()
+                    .filter(q -> answeredIds.contains(q.getQuizId()))
+                    .toList();
+        }
+
         for (QuizGradeRequest.Answer answer : answers) {
             Long quizId = null;
             String question = answer.getQuestion();
             String userAnswer = answer.getUser_answer();
 
-            // ✅ quiz_id 값이 있으면 먼저 사용
             try {
                 if (answer.getQuiz_id() != null) {
                     quizId = Long.parseLong(answer.getQuiz_id().toString());
                 }
             } catch (Exception ignored) {}
 
-            final Long finalQuizId = quizId; // ✅ 람다에서 사용할 final 변수
+            final Long finalQuizId = quizId;
 
             Quiz matchedQuiz = null;
             if (finalQuizId != null) {
-                matchedQuiz = quizzes.stream()
+                matchedQuiz = targetQuizzes.stream()
                         .filter(q -> Objects.equals(q.getQuizId(), finalQuizId.intValue()))
                         .findFirst()
                         .orElse(null);
             } else if (question != null) {
-                matchedQuiz = quizzes.stream()
+                matchedQuiz = targetQuizzes.stream()
                         .filter(q -> q.getQuestion().trim().equalsIgnoreCase(question.trim()))
                         .findFirst()
                         .orElse(null);
@@ -112,7 +135,9 @@ public class QuizService {
             if (matchedQuiz == null) continue;
 
             boolean isCorrect = matchedQuiz.getCorrectAnswer().trim().equalsIgnoreCase(userAnswer.trim());
-            int score = isCorrect ? (100 / quizzes.size()) : 0;
+
+            // ✅ 이번 요청에 제출한 문제 수 기준으로 점수 계산
+            int score = isCorrect ? (100 / totalAnswered) : 0;
             if (isCorrect) correctCount++;
             totalScore += score;
 
@@ -130,8 +155,9 @@ public class QuizService {
         Map<String, Object> resultBody = new LinkedHashMap<>();
         resultBody.put("final_total_score", totalScore);
         resultBody.put("correct_count", correctCount);
-        resultBody.put("total_questions", quizzes.size());
+        resultBody.put("total_questions", totalAnswered); // ✅ 수정: 전체가 아닌 제출된 개수
         resultBody.put("results", results);
+
         return resultBody;
     }
 
