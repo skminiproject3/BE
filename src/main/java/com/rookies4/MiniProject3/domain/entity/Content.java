@@ -5,6 +5,7 @@ import jakarta.persistence.*;
 import lombok.*;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Entity
 @Table(name = "contents")
@@ -68,14 +69,15 @@ public class Content {
         this.updatedAt = LocalDateTime.now();
     }
 
-    /** ====== 유틸리티 메서드 ====== */
+    /** ====== Progress 연관관계 ====== */
+    @OneToMany(mappedBy = "content", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<Progress> progresses;
 
-    /** totalChapters 업데이트 */
+    /** ====== 유틸리티 메서드 ====== */
     public void updateTotalChapters(int totalChapters) {
         this.totalChapters = totalChapters;
     }
 
-    /** 상태 변경 */
     public void changeStatus(ContentStatus newStatus) {
         this.status = newStatus;
     }

@@ -242,7 +242,7 @@ public class PythonServerClient {
     }
 
     // ======================================
-    // ✅ 퀴즈 생성 (FastAPI 경로 수정 완료)
+    // 퀴즈 생성 (FastAPI 경로 수정 완료)
     // ======================================
     public List<QuizResponseDto> generateQuiz(Long contentId, List<String> pdfPaths, int numQuestions, String difficulty) {
         try {
@@ -366,7 +366,7 @@ public class PythonServerClient {
     }
 
     // ======================================
-    // ✅ FastAPI 호환 채점 요청
+    // FastAPI 호환 채점 요청
     // ======================================
     public Map<String, Object> gradeQuiz(List<String> pdfPaths, List<QuizGradeRequest.Answer> answers) {
         try {
