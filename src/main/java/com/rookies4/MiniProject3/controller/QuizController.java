@@ -1,8 +1,15 @@
 package com.rookies4.MiniProject3.controller;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.rookies4.MiniProject3.domain.entity.*;
-import com.rookies4.MiniProject3.dto.*;
+import com.rookies4.MiniProject3.domain.entity.Content;
+import com.rookies4.MiniProject3.domain.entity.Progress;
+import com.rookies4.MiniProject3.domain.entity.Quiz;
+import com.rookies4.MiniProject3.domain.entity.QuizAttempt;
+import com.rookies4.MiniProject3.dto.QuizGradeRequest;
+import com.rookies4.MiniProject3.dto.QuizRequest;
+import com.rookies4.MiniProject3.dto.QuizResponseDto;
+import com.rookies4.MiniProject3.exception.CustomException;
+import com.rookies4.MiniProject3.exception.ErrorCode;
 import com.rookies4.MiniProject3.service.ContentService;
 import com.rookies4.MiniProject3.service.ProgressService;
 import com.rookies4.MiniProject3.service.PythonServerClient;
@@ -142,7 +149,7 @@ public class QuizController {
         }
     }
 
-    // ✅ (3) 채점 + 저장 + Progress 갱신
+    // ✅ (3) 채점 + 저장 + Progress 갱신  ← attempt_id 포함 응답으로 변경
     @PostMapping("/grade")
     public ResponseEntity<?> gradeQuiz(
             @PathVariable Long contentId,
@@ -168,7 +175,7 @@ public class QuizController {
                         .body(Map.of("status", "error", "message", "❌ 해당 회차 퀴즈 없음", "batch", batchToUse));
 
             // ✅ 채점
-            Map<String, Object> result = quizService.gradeQuizLocally(quizzes, request.getAnswers());
+            Map<String, Object> graded = quizService.gradeQuizLocally(quizzes, request.getAnswers());
 
             // ✅ Progress 조회 or 생성
             Progress progress = progressService.findProgressByContentId(contentId);
@@ -179,21 +186,28 @@ public class QuizController {
                 progress = progressService.createProgressIfNotExists(content.getUser().getId(), contentId);
             }
 
-            // ✅ QuizAttempt 저장
-            quizService.saveQuizAttempt(progress, result, batchToUse);
+            // ✅ QuizAttempt 저장 (attempt_id 확보)
+            QuizAttempt attempt = quizService.saveQuizAttempt(progress, graded, batchToUse);
 
             // ✅ Progress 점수 갱신
-            Float score = ((Number) result.get("final_total_score")).floatValue();
-            Long userId = progress.getUser() != null ? progress.getUser().getId() : content.getUser().getId();
+            Float score = ((Number) graded.get("final_total_score")).floatValue();
+            Long userId = (progress.getUser() != null) ? progress.getUser().getId() : content.getUser().getId();
             progressService.updateProgressAfterQuiz(userId, contentId, score);
 
-            result.put("batch", batchToUse);
-            return ResponseEntity.ok(Map.of(
-                    "status", "success",
-                    "message", "✅ 채점 및 저장 완료",
-                    "batch", batchToUse,
-                    "data", result
-            ));
+            // ✅ 응답: attempt_id + 요약 + 문항 목록(응답으로만)
+            Map<String, Object> body = new LinkedHashMap<>();
+            body.put("status", "success");
+            body.put("message", "✅ 채점 및 저장 완료");
+            body.put("attempt_id", attempt.getId());
+            body.put("content_id", contentId);
+            body.put("batch", batchToUse);
+            body.put("final_total_score", graded.get("final_total_score"));
+            body.put("correct_count", graded.get("correct_count"));
+            body.put("total_questions", graded.get("total_questions"));
+            body.put("results", graded.get("results")); // ← 프론트 결과 페이지가 바로 사용 (재조회 불필요)
+
+            return ResponseEntity.ok(body);
+
         } catch (Exception e) {
             log.error("🚨 채점 오류", e);
             return ResponseEntity.internalServerError()
@@ -201,7 +215,7 @@ public class QuizController {
         }
     }
 
-    // ✅ (4) 시도 기록 조회
+    // ✅ (4) 시도 기록 조회 (정렬 보장 추가)
     @GetMapping("/attempts")
     public ResponseEntity<?> getQuizAttempts(
             @PathVariable Long contentId,
@@ -224,6 +238,20 @@ public class QuizController {
                         .filter(a -> a.getQuizBatch().equals(batchParam))
                         .toList();
             }
+
+            // 최신 우선 정렬 (created_at DESC, id DESC)
+            attempts = attempts.stream()
+                    .sorted((a, b) -> {
+                        int t = (b.getCreatedAt() != null && a.getCreatedAt() != null)
+                                ? b.getCreatedAt().compareTo(a.getCreatedAt())
+                                : 0;
+                        if (t != 0) return t;
+                        return Long.compare(
+                                Optional.ofNullable(b.getId()).orElse(0L),
+                                Optional.ofNullable(a.getId()).orElse(0L)
+                        );
+                    })
+                    .toList();
 
             if (attempts.isEmpty())
                 return ResponseEntity.status(HttpStatus.NOT_FOUND)
@@ -250,6 +278,40 @@ public class QuizController {
             log.error("🚨 시도 기록 조회 오류", e);
             return ResponseEntity.internalServerError()
                     .body(Map.of("status", "error", "message", "조회 중 오류 발생"));
+        }
+    }
+
+    // ✅ (5) 대시보드용: 특정 attempt 요약 단건 조회 (정답률 안정 표시용)
+    @GetMapping("/attempts/{attemptId}")
+    public ResponseEntity<?> getAttemptSummary(
+            @PathVariable Long contentId,  // contentId는 경로상 존재하지만 여기선 검증만(옵션)
+            @PathVariable Long attemptId
+    ) {
+        try {
+            Optional<QuizAttempt> opt = quizService.getAttemptById(attemptId);
+            if (opt.isEmpty()) {
+                return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                        .body(Map.of("status", "error", "message", "❌ 해당 시도를 찾을 수 없습니다."));
+            }
+            QuizAttempt a = opt.get();
+
+            Map<String, Object> body = new LinkedHashMap<>();
+            body.put("attempt_id", a.getId());
+            body.put("content_id", contentId);
+            body.put("quiz_batch", a.getQuizBatch());
+            body.put("score", a.getScore());                 // 0~100 (%)
+            body.put("correct_answers", a.getCorrectAnswers());
+            body.put("total_questions", a.getTotalQuestions());
+            body.put("created_at", a.getCreatedAt());
+
+            return ResponseEntity.ok(body);
+        } catch (CustomException ce) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(Map.of("status", "error", "message", ce.getMessage()));
+        } catch (Exception e) {
+            log.error("🚨 attempt 요약 조회 오류", e);
+            return ResponseEntity.internalServerError()
+                    .body(Map.of("status", "error", "message", "시도 조회 중 오류 발생"));
         }
     }
 }

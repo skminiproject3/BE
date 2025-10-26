@@ -1,6 +1,5 @@
 package com.rookies4.MiniProject3.service;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.rookies4.MiniProject3.domain.entity.Content;
@@ -20,10 +19,6 @@ import org.springframework.stereotype.Service;
 
 import java.util.*;
 
-/**
- * 퀴즈 생성 / 저장 / 채점 / 결과 관리 서비스
- * ✅ 회차(batch) 단위로 퀴즈 세트를 관리
- */
 @Slf4j
 @Service
 @RequiredArgsConstructor
@@ -33,27 +28,16 @@ public class QuizService {
     private final QuizAttemptRepository quizAttemptRepository;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
-    // ==========================================================
-    // ✅ 1. 최신 batch 번호 조회
-    // ==========================================================
+    // ---------- 1) 최신 batch ----------
     public int getLatestBatchForContent(Content content) {
         return quizRepository.findTopByContentOrderByQuizBatchDesc(content)
                 .map(Quiz::getQuizBatch)
                 .orElse(0);
     }
 
-    // ==========================================================
-    // ✅ 2. 단일 퀴즈 저장
-    // ==========================================================
-    private Quiz saveSingleQuiz(
-            Content content,
-            int quizId,
-            int quizBatch,
-            String question,
-            String correctAnswer,
-            String optionsJson,
-            String explanation
-    ) {
+    // ---------- 2) 단일 퀴즈 저장 ----------
+    private Quiz saveSingleQuiz(Content content, int quizId, int quizBatch,
+                                String question, String correctAnswer, String optionsJson, String explanation) {
         try {
             Quiz quiz = Quiz.builder()
                     .content(content)
@@ -64,7 +48,6 @@ public class QuizService {
                     .correctAnswer(correctAnswer)
                     .explanation(explanation)
                     .build();
-
             return quizRepository.save(quiz);
         } catch (DataAccessException e) {
             log.error("❌ DB 오류: 퀴즈 저장 실패 - {}", e.getMessage(), e);
@@ -75,21 +58,15 @@ public class QuizService {
         }
     }
 
-    // ==========================================================
-    // ✅ 3. FastAPI 퀴즈 세트 저장 (새로운 batch 자동 생성)
-    // ==========================================================
+    // ---------- 3) 세트 저장 ----------
     public List<Quiz> saveGeneratedQuizSet(Content content, List<QuizResponseDto> quizzesFromLLM) {
-        if (content == null)
-            throw new CustomException(ErrorCode.CONTENT_NOT_FOUND);
-        if (quizzesFromLLM == null || quizzesFromLLM.isEmpty())
-            return Collections.emptyList();
+        if (content == null) throw new CustomException(ErrorCode.CONTENT_NOT_FOUND);
+        if (quizzesFromLLM == null || quizzesFromLLM.isEmpty()) return Collections.emptyList();
 
         try {
             int newBatch = getLatestBatchForContent(content) + 1;
-
             int startQuizId = quizRepository.findTopByContentOrderByQuizIdDesc(content)
-                    .map(q -> q.getQuizId() + 1)
-                    .orElse(1);
+                    .map(q -> q.getQuizId() + 1).orElse(1);
 
             List<Quiz> savedList = new ArrayList<>();
             int runningQuizId = startQuizId;
@@ -98,18 +75,12 @@ public class QuizService {
                 String optionsJson;
                 try {
                     optionsJson = objectMapper.writeValueAsString(dto.getOptions());
-                } catch (JsonProcessingException e) {
+                } catch (Exception e) {
                     optionsJson = "[]";
                 }
-
                 Quiz saved = saveSingleQuiz(
-                        content,
-                        runningQuizId,
-                        newBatch,
-                        dto.getQuestion(),
-                        dto.getCorrectAnswer(),
-                        optionsJson,
-                        dto.getExplanation()
+                        content, runningQuizId, newBatch,
+                        dto.getQuestion(), dto.getCorrectAnswer(), optionsJson, dto.getExplanation()
                 );
                 savedList.add(saved);
                 runningQuizId++;
@@ -125,9 +96,7 @@ public class QuizService {
         }
     }
 
-    // ==========================================================
-    // ✅ 4. 콘텐츠 + 회차별 퀴즈 조회
-    // ==========================================================
+    // ---------- 4) 조회 ----------
     public List<Quiz> getQuizzesByContentAndBatch(Content content, Integer batch) {
         try {
             return quizRepository.findByContentAndQuizBatch(content, batch);
@@ -137,23 +106,17 @@ public class QuizService {
         }
     }
 
-    // ==========================================================
-    // ✅ 5. 최신 회차 퀴즈 조회
-    // ==========================================================
     public List<Quiz> getLatestBatchQuizzes(Content content) {
         int latestBatch = getLatestBatchForContent(content);
         if (latestBatch == 0) return Collections.emptyList();
         return getQuizzesByContentAndBatch(content, latestBatch);
     }
 
-    // ==========================================================
-    // ✅ 6. 로컬 채점 (보기 텍스트로 표준화 후 비교)
-    // ==========================================================
+    // ---------- 5) 로컬 채점 ----------
     public Map<String, Object> gradeQuizLocally(List<Quiz> quizzes, List<QuizGradeRequest.Answer> answers) {
         if (quizzes == null || quizzes.isEmpty() || answers == null || answers.isEmpty())
             throw new CustomException(ErrorCode.INVALID_INPUT);
 
-        // quizId -> 사용자 답("A"/"1"/"텍스트")
         Map<Integer, String> userAnsMap = new HashMap<>();
         for (QuizGradeRequest.Answer a : answers) {
             Integer qid = safelyParseToInt(a.getQuiz_id());
@@ -169,12 +132,11 @@ public class QuizService {
             String userRaw = userAnsMap.getOrDefault(qid, "");
 
             List<String> options = parseOptions(q.getOptions());
-            String correctText = normalizeToOptionText(q.getCorrectAnswer(), options); // ✅ 정답 텍스트
-            String userText    = normalizeToOptionText(userRaw, options);             // ✅ 사용자 답 텍스트
+            String correctText = normalizeToOptionText(q.getCorrectAnswer(), options);
+            String userText    = normalizeToOptionText(userRaw, options);
 
             boolean isCorrect = !userText.isBlank()
                     && correctText.replaceAll("\\s+", "").equalsIgnoreCase(userText.replaceAll("\\s+", ""));
-
             if (isCorrect) correctCount++;
 
             Map<String, Object> one = new LinkedHashMap<>();
@@ -184,7 +146,6 @@ public class QuizService {
             one.put("correct_answer", correctText);
             one.put("user_answer", userText);
             one.put("is_correct", isCorrect);
-            // 🔸문항별 score는 0/1로만 (원하면 제거해도 OK)
             one.put("score", isCorrect ? 1 : 0);
             one.put("explanation", q.getExplanation());
             items.add(one);
@@ -195,17 +156,15 @@ public class QuizService {
                 : 0;
 
         Map<String, Object> result = new LinkedHashMap<>();
-        result.put("final_total_score", finalScorePct);   // ✅ 0~100 (%)
+        result.put("final_total_score", finalScorePct);
         result.put("correct_count", correctCount);
-        result.put("total_questions", totalQuestions);    // ✅ quizzes 기준
+        result.put("total_questions", totalQuestions);
         result.put("results", items);
         return result;
     }
 
-    // ==========================================================
-    // ✅ 7. quiz_attempts 저장 (batch 포함)
-    // ==========================================================
-    public void saveQuizAttempt(Progress progress, Map<String, Object> result, int batch) {
+    // ---------- 6) 시도 저장 (요약값만 저장 / items 저장 안 함)  ※반환형 변경
+    public QuizAttempt saveQuizAttempt(Progress progress, Map<String, Object> result, int batch) {
         try {
             Number s = (Number) result.getOrDefault("final_total_score", 0);
             Number t = (Number) result.getOrDefault("total_questions", 0);
@@ -213,25 +172,24 @@ public class QuizService {
 
             QuizAttempt attempt = QuizAttempt.builder()
                     .progress(progress)
-                    .score(s.floatValue())          // 0~100 (%)
+                    .score(s.floatValue())
                     .totalQuestions(t.intValue())
                     .correctAnswers(c.intValue())
                     .quizBatch(batch)
                     .build();
 
-            quizAttemptRepository.save(attempt);
-
-            log.info("🧾 QuizAttempt 저장 완료 | progress_id={} | batch={} | score={} | correct={}/{}",
-                    progress.getId(), batch, attempt.getScore(), attempt.getCorrectAnswers(), attempt.getTotalQuestions());
+            QuizAttempt saved = quizAttemptRepository.save(attempt);
+            log.info("🧾 QuizAttempt 저장 완료 | progress_id={} | batch={} | attempt_id={} | score={} | correct={}/{}",
+                    progress.getId(), batch, saved.getId(), saved.getScore(), saved.getCorrectAnswers(), saved.getTotalQuestions());
+            return saved;
 
         } catch (Exception e) {
             log.error("❌ QuizAttempt 저장 중 오류", e);
+            throw new CustomException(ErrorCode.DATABASE_ERROR);
         }
     }
 
-    // ==========================================================
-    // ✅ 8. Progress별 시도 조회
-    // ==========================================================
+    // ---------- 7) Progress별 시도 조회 ----------
     public List<QuizAttempt> getAttemptsByProgress(Progress progress) {
         try {
             return quizAttemptRepository.findByProgress(progress);
@@ -241,9 +199,45 @@ public class QuizService {
         }
     }
 
-    // ==========================================================
-    // ✅ 9. 안전한 quiz_id 파싱
-    // ==========================================================
+    // ---------- 8) 특정 시도 조회(요약) → Dashboard에서 사용 ----------
+    public Optional<QuizAttempt> getAttemptById(Long attemptId) {
+        return quizAttemptRepository.findById(attemptId);
+    }
+
+    // ---------- 9) 컨트롤러에서 바로 쓰는 "채점→저장→응답" ----------
+    // ※ DB 저장은 요약만, 문항 results는 "응답으로만" 전달(재조회/저장은 안 함)
+    public Map<String, Object> gradeAndSave(Content content, Progress progress, Integer batchOrNull, List<QuizGradeRequest.Answer> answers) {
+        if (content == null) throw new CustomException(ErrorCode.CONTENT_NOT_FOUND);
+
+        int batch = (batchOrNull != null) ? batchOrNull : getLatestBatchForContent(content);
+        List<Quiz> quizzes = getQuizzesByContentAndBatch(content, batch);
+        if (quizzes.isEmpty()) {
+            Map<String, Object> empty = new LinkedHashMap<>();
+            empty.put("attempt_id", null);
+            empty.put("content_id", content.getId());
+            empty.put("batch", batch);
+            empty.put("final_total_score", 0);
+            empty.put("correct_count", 0);
+            empty.put("total_questions", 0);
+            empty.put("results", Collections.emptyList());
+            return empty;
+        }
+
+        Map<String, Object> graded = gradeQuizLocally(quizzes, answers);
+        QuizAttempt attempt = saveQuizAttempt(progress, graded, batch);
+
+        Map<String, Object> resp = new LinkedHashMap<>();
+        resp.put("attempt_id", attempt.getId());
+        resp.put("content_id", content.getId());
+        resp.put("batch", batch);
+        resp.put("final_total_score", graded.get("final_total_score"));
+        resp.put("correct_count", graded.get("correct_count"));
+        resp.put("total_questions", graded.get("total_questions"));
+        resp.put("results", graded.get("results")); // <-- 문항은 응답으로만
+        return resp;
+    }
+
+    // ---------- 헬퍼 ----------
     private Integer safelyParseToInt(Object obj) {
         if (obj == null) return null;
         try {
@@ -254,15 +248,11 @@ public class QuizService {
         return null;
     }
 
-    // ==========================================================
-    // 🔧 헬퍼: options JSON → List<String>
-    // ==========================================================
     private List<String> parseOptions(String optionsJson) {
         if (optionsJson == null || optionsJson.isBlank()) return List.of();
         try {
             return objectMapper.readValue(optionsJson, new TypeReference<List<String>>() {});
         } catch (Exception e) {
-            // "A|B|C|D" 류 대비
             if (optionsJson.contains("|")) {
                 return Arrays.stream(optionsJson.split("\\|"))
                         .map(String::trim).filter(s -> !s.isBlank()).toList();
@@ -272,30 +262,21 @@ public class QuizService {
         }
     }
 
-    // ==========================================================
-    // 🔧 헬퍼: "A"/"1"/"텍스트" → 보기 텍스트로 표준화
-    // ==========================================================
     private String normalizeToOptionText(String raw, List<String> options) {
         String s = raw == null ? "" : raw.trim();
         if (s.isEmpty()) return "";
 
-        // 알파벳 한 글자 (A=0,B=1,…)
         if (s.length() == 1 && Character.isLetter(s.charAt(0))) {
             int idx = Character.toUpperCase(s.charAt(0)) - 'A';
             return (idx >= 0 && idx < options.size()) ? options.get(idx).trim() : "";
         }
-
-        // 숫자 (0/1/2/3 혹은 1/2/3/4)
         if (s.matches("^\\d+$")) {
             int n = Integer.parseInt(s);
-            int idx = (n < options.size()) ? n : n - 1; // 0/1 기반 모두 허용
+            int idx = (n < options.size()) ? n : n - 1;
             return (idx >= 0 && idx < options.size()) ? options.get(idx).trim() : "";
         }
 
-        // "B. 텍스트" 같은 접두 제거
         String noPrefix = s.replaceAll("^[A-Za-z]\\s*\\.|^\\d+\\s*\\.", "").trim();
-
-        // 공백/대소문자 무시하여 옵션과 매칭
         String norm = noPrefix.replaceAll("\\s+", "").toLowerCase();
         for (String opt : options) {
             String o = (opt == null ? "" : opt).trim();
@@ -303,6 +284,6 @@ public class QuizService {
                 return o;
             }
         }
-        return noPrefix; // 그래도 남기기
+        return noPrefix;
     }
 }
