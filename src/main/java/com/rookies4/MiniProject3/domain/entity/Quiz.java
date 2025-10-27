@@ -16,9 +16,14 @@ public class Quiz {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id; // DB 고유 PK
 
-    // ✅ 콘텐츠별 퀴즈 순서 ID (1, 2, 3...)
+    // 콘텐츠별 퀴즈 순서 ID (1, 2, 3...)
     @Column(name = "quiz_id")
     private Integer quizId;
+
+    // 한 번 생성한 "퀴즈 세트(회차)" 번호
+    // 예) 첫 생성한 묶음 = 1, 두 번째 다시 생성한 묶음 = 2
+    @Column(name = "quiz_batch", nullable = false)
+    private Integer quizBatch;
 
     // FK → contents.id
     @ManyToOne(fetch = FetchType.LAZY)

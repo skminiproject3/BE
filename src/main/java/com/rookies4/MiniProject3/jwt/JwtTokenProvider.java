@@ -40,11 +40,6 @@ public class JwtTokenProvider {
                 .map(GrantedAuthority::getAuthority)
                 .collect(Collectors.joining(","));
 
-        // 권한이 없으면 기본 ROLE_USER 부여
-        if (authorities.isBlank()) {
-            authorities = "ROLE_USER";
-        }
-
         long now = (new Date()).getTime();
 
         // Access Token 생성
