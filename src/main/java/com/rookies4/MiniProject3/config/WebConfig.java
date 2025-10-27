@@ -26,7 +26,7 @@ public class WebConfig implements WebMvcConfigurer {
                         "http://localhost:3000",
                         "http://3.80.31.210",
                         "http://3.80.31.210:80",
-                        "https://3.80.31.210"          /
+                        "https://3.80.31.210"
                 )
                 .allowedMethods("GET", "POST", "PUT", "DELETE", "OPTIONS")
                 .allowCredentials(true);
