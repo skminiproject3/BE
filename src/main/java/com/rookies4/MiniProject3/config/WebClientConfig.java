@@ -8,7 +8,7 @@ import org.springframework.web.reactive.function.client.WebClient;
 @Configuration
 public class WebClientConfig {
 
-    @Value("${python.server.url:http://localhost:8000}")
+    @Value("${python.server.url:http://ai:8000}")
     private String pythonServerUrl;
 
     @Bean
