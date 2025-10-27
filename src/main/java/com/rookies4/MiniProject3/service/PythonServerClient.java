@@ -26,7 +26,7 @@ public class PythonServerClient {
 
     private final WebClient webClient;
 
-    @Value("${backend.base-url:http://backend:8080}") // ✅ Spring 서버 주소
+    @Value("${backend.base-url:http://localhost:8080}") // ✅ Spring 서버 주소
     private String backendBaseUrl;
 
     @Value("${python.server.url:http://ai:8000}")
@@ -52,7 +52,7 @@ public class PythonServerClient {
             body.add("files", new FileSystemResource(file));
 
             log.info("📤 FastAPI 업로드 요청 시작 | contentId={} | path={}", contentId, filePath);
-
+            log.info("FastAPI base url={}",fastApiBaseUrl);
             // FastAPI 업로드 요청
             Map<String, Object> response = webClient.post()
                     .uri(fastApiBaseUrl + "/upload_pdfs/")
