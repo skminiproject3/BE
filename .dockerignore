@@ -1,0 +1,36 @@
+# Git / IDE
+.git
+.gitignore
+.idea
+.vscode
+*.iml
+
+# Maven Wrapper / Build Tool 설정
+.mvn/
+mvnw
+mvnw.cmd
+
+# Build artifacts (재빌드 시 자동 생성됨)
+build/
+out/
+
+# OS / 임시 파일
+*.log
+*.tmp
+*.swp
+.DS_Store
+Thumbs.db
+
+# 환경 변수 / 보안 키
+.env
+*.pem
+*.key
+*.crt
+
+# 업로드 폴더 — 로컬 볼륨으로 관리 (Docker Compose에서 mount)
+uploads/
+
+# 테스트 관련 산출물
+test-output/
+reports/
+jacoco.exec
