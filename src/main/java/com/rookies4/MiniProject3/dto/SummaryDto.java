@@ -1,5 +1,6 @@
 package com.rookies4.MiniProject3.dto;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -15,6 +16,7 @@ public class SummaryDto {
     @NoArgsConstructor
     @AllArgsConstructor
     public static class ChapterRequest {
+
         private Integer chapter;  // 요청할 챕터 번호 (예: 1, 2, 3 등)
     }
 

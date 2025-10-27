@@ -73,16 +73,24 @@ public class SummaryController {
     public ResponseEntity<?> summarizeByChapter(
             @PathVariable Long contentId,
             @RequestBody SummaryDto.ChapterRequest request
+
     ) {
         log.info("📘 단원별 요약 요청 수신 | contentId={} | chapter={}", contentId, request.getChapter());
 
         try {
-            // 1️⃣ FastAPI 호출
-            String resultJson = pythonClient.summarizeByChapter(contentId, request);
-            Map<String, Object> responseMap = objectMapper.readValue(resultJson, Map.class);
 
-            // 2️⃣ 콘텐츠 확인
+            /////  Vector Path 가져오기  //10.25일 추가
+            //1️⃣  콘텐츠 확인 (먼저 content 가져오기)
             Content content = findContentOrThrow(contentId);
+            String vectorPath = content.getVectorPath(); // 반드시 Content 엔티티에 getter 필요
+            if (vectorPath == null || vectorPath.isEmpty()) {
+                throw new CustomException(ErrorCode.CONTENT_VECTOR_NOT_FOUND);
+            }
+            /////  Vector Path 가져오기  //10.25일 추가
+
+            // 2️⃣ FastAPI 호출
+            String resultJson = pythonClient.summarizeByChapter(contentId, request, vectorPath); // , vectorPath 추가
+            Map<String, Object> responseMap = objectMapper.readValue(resultJson, Map.class);
 
             // 3️⃣ DB 저장
             int savedCount = summaryService.saveChapterSummaries(content, resultJson);

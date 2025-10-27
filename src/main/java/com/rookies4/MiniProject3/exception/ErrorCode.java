@@ -37,7 +37,7 @@ public enum ErrorCode {
     FILE_NOT_ATTACHED(HttpStatus.BAD_REQUEST, "FILE_NOT_ATTACHED", "[ERROR] 처리할 파일을 첨부해주세요."),
     CONTENT_NOT_FOUND(HttpStatus.NOT_FOUND, "CONTENT_NOT_FOUND", "[ERROR] 해당 콘텐츠를 찾을 수 없습니다."),
     PROCESSING_NOT_COMPLETED(HttpStatus.CONFLICT, "PROCESSING_NOT_COMPLETED", "[ERROR] 콘텐츠 처리가 아직 완료되지 않았습니다."),
-
+    CONTENT_VECTOR_NOT_FOUND(HttpStatus.NOT_FOUND, "CONTENT_VECTOR_NOT_FOUND", "[ERROR] 콘텐츠 벡터 경로를 찾을 수 없습니다."), // ✅ 새로 추가
     // ==========================================================
     // ✅ Summary
     // ==========================================================

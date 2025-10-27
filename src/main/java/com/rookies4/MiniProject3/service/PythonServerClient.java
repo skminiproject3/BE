@@ -142,8 +142,8 @@ public class PythonServerClient {
 
     // ======================================
 // 단원별 요약 요청
-// ======================================
-    public String summarizeByChapter(Long contentId, SummaryDto.ChapterRequest request) {
+// ======================================                                     //, String vectorPath 추가
+    public String summarizeByChapter(Long contentId, SummaryDto.ChapterRequest request, String vectorPath) {
         log.info("[AI 요약 요청] 단원별 요약 요청 → contentId={} | chapter={}",
                 contentId, request.getChapter()); // ✅ 수정됨
 
